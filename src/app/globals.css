@@ -153,3 +153,62 @@ label.pick {
   color: #ffd9d5;
   background: #2a1512;
 }
+
+/* ---- the encounter ---------------------------------------------------- */
+
+.meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.meter-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--good), var(--warm) 60%, var(--alarm));
+  transition: width 420ms cubic-bezier(0.2, 0.7, 0.3, 1);
+}
+
+.scene .who {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+  margin-bottom: 10px;
+}
+
+/* Spoken lines are the thing being read, so they get room and a serif-ish
+   rhythm rather than the interface's own voice. */
+.said {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.5;
+  max-width: 46ch;
+}
+
+.voicekey {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 3px;
+  padding: 12px 14px;
+  min-width: 170px;
+  text-align: left;
+  /* A key being held should feel pressed, not merely coloured. */
+  transition: transform 90ms ease, border-color 120ms ease;
+  touch-action: none;
+}
+
+.voicekey.on { transform: translateY(1px); }
+
+.voicekey .key {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-faint);
+}
+
+.voicekey.on .key { color: var(--warm-deep); }
+
+.talk { margin-bottom: 16px; }
