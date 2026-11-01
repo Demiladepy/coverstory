@@ -14,6 +14,12 @@ export type MicFrame = { pcm: Int16Array; rms: number; atMs: number };
 export type Mic = {
   /** ms of audio captured since the session started */
   elapsedMs: () => number;
+  /**
+   * Push whatever is still buffered. Call this before ForceEndpoint or the
+   * last fraction of a second — often the end of the last word — never
+   * reaches the transcript.
+   */
+  flush: () => void;
   /** peak loudness between two points on the session timeline, 0..1 */
   loudnessBetween: (startMs: number, endMs: number) => number;
   /** loudness over the whole capture so far, used as the speaker's baseline */
@@ -58,22 +64,45 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
   let samples = 0;
   const track: { atMs: number; rms: number }[] = [];
 
+  // A worklet hands us 128 samples at a time — 8 ms at 16 kHz — and the
+  // transcript socket refuses anything under 20 ms. So the PCM is batched into
+  // chunks before it goes out. The loudness track is not batched: it stays at
+  // the worklet's own resolution, because a shout is a short, sharp thing and
+  // 64 ms buckets would smear it away.
+  const CHUNK = 1024; // 64 ms at 16 kHz
+  let pending = new Int16Array(CHUNK);
+  let pendingLength = 0;
+  let pendingAtMs = 0;
+  let pendingPeak = 0;
+
+  const emit = () => {
+    if (pendingLength === 0) return;
+    onFrame({ pcm: pending.slice(0, pendingLength), rms: pendingPeak, atMs: pendingAtMs });
+    pending = new Int16Array(CHUNK);
+    pendingLength = 0;
+    pendingPeak = 0;
+  };
+
   node.port.onmessage = (event: MessageEvent<Float32Array>) => {
     const float = event.data;
     const atMs = (samples / ctx.sampleRate) * 1000;
     samples += float.length;
 
-    const pcm = new Int16Array(float.length);
+    // One loudness reading per worklet frame, on the same timeline the
+    // transcript's word times use.
     let sumSquares = 0;
+    for (let i = 0; i < float.length; i++) sumSquares += float[i] * float[i];
+    const rms = Math.sqrt(sumSquares / float.length);
+    track.push({ atMs, rms });
+
+    if (pendingLength === 0) pendingAtMs = atMs;
+    if (rms > pendingPeak) pendingPeak = rms;
+
     for (let i = 0; i < float.length; i++) {
       const s = Math.max(-1, Math.min(1, float[i]));
-      pcm[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-      sumSquares += s * s;
+      pending[pendingLength++] = s < 0 ? s * 0x8000 : s * 0x7fff;
+      if (pendingLength === CHUNK) emit();
     }
-    const rms = Math.sqrt(sumSquares / float.length);
-
-    track.push({ atMs, rms });
-    onFrame({ pcm, rms, atMs });
   };
 
   source.connect(node);
@@ -85,6 +114,8 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
 
   return {
     elapsedMs: () => (samples / ctx.sampleRate) * 1000,
+
+    flush: emit,
 
     loudnessBetween(startMs, endMs) {
       let peak = 0;

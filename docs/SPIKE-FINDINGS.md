@@ -64,42 +64,40 @@ One `WordBoundaries` frame per request, one entry per whitespace token, with
 confidences. Zero-length entries show up for tokens with no sound, exactly as
 documented, so the caption renderer has to skip them. Captions are real.
 
-## The brain is the constrained part
+## The brain: choose on judgement, not on speed
 
-**This account can reach two LLM Gateway models.** Everything else — Haiku,
-Sonnet, the Gemini line, the Nemotrons, GPT-5 Nano, GLM, `mercury-voice` —
-answers `Your account does not have access to this LLM Gateway model`.
+Before the plan was upgraded this account could reach exactly two Gateway
+models, and the usable one was bad at the job. **Upgrading opened the
+catalog**, so the choice is now real. Four answers were written to trip one
+flag each, and each model scored 2 for setting only the right flag, 1 for
+setting it among others, 0 for missing it:
 
-| model | latency | notes |
-| --- | --- | --- |
-| `gemma-4-31b` | ~0.9–3.0 s | honours `response_format`, writes good lines |
-| `qwen3.5-4b-32k-fast` | ~1.9 s | rejects `response_format`, writes nonsense |
+| model | avg latency | flag score | misses |
+| --- | --- | --- | --- |
+| **`gemini-2.5-flash-lite`** | 1482 ms | **6/8** | read the evasive answer as childlike |
+| `nemotron-nano-9b-v2` | 908 ms | 4/8 | missed childlike and contradiction |
+| `gemma-4-31b` | 936 ms | 2/8 | `confident` on everything, saw nothing else |
+| `claude-haiku-5-5` | 2444 ms | — | never returned parsable JSON |
 
-So the brain runs on `gemma-4-31b`. It is not on the critical path — the
-visitor replies *after* the grown-up line has played, which buys two or three
-seconds of cover — so ~1 s is affordable.
+**The brain runs on `gemini-2.5-flash-lite`.** The two quicker models save
+about 500 ms and get the meter wrong, which is the wrong trade: the brain
+runs *after* the grown-up line has started playing, so it has two or three
+seconds of cover and no reason to be cheap about accuracy.
 
-### But its flags can't be trusted
+The one flag gemini gets cleanly that the others don't is **contradiction** —
+which is the single flag that genuinely needs memory and semantics, and the
+one thing code cannot do for itself.
 
-Four answers, written to trip one flag each:
+### What the model should and shouldn't be asked
 
-| answer | `satisfied` | flags it set |
-| --- | --- | --- |
-| confident and cooperative | true | `confident` |
-| evasive, full of fillers | false | `confident` |
-| kid slip ("my mom said I'm not allowed") | false | `contradiction`, `confident` |
-| flat contradiction ("I am the dad. My dad is in the shower") | false | `confident` |
-
-`satisfied` is perfect — true for exactly the one good answer. The written
-lines are genuinely in character; the one answering the kid slip was the best
-of the four. But the per-flag judgement is noise: `confident` fires on
-everything, `evasive` and `childlike` never fire, and `contradiction` fires on
-the answer that isn't one and misses the answer that is.
+Gemini missed `evasive`, reading a reply full of fillers as childlike. That is
+a defensible reading, and it is also the point: these categories blur for a
+model looking only at text, while the code has signals the model cannot see.
 
 The plan already said to score suspicion in code rather than on the model's
 mood, for tunability. The measurement makes it a stronger rule: **the model
-writes the line and answers one focused question; the code scores everything
-it can see for itself.**
+writes the line and judges contradiction; the code scores everything it can
+see for itself.**
 
 | signal | where it comes from now |
 | --- | --- |
@@ -110,11 +108,9 @@ it can see for itself.**
 | confidence | filler count, hesitation length, loudness against baseline |
 | contradiction | the model, asked **one** yes/no question against remembered claims |
 
-Asking for a single contradiction judgement in its own call is a different
-proposition from asking for it as one boolean among four, and it is the only
-part of the scoring that genuinely needs semantics and memory. Everything else
-is already measurable from the mic and the transcript, for free and
-instantly.
+Everything above the last row is already measurable from the mic and the
+transcript, for free and instantly. Only contradiction needs the model, and
+gemini is the model that gets it right.
 
 ## Costs are not a constraint
 
@@ -133,8 +129,7 @@ All three are in the browser spike at `/spike`.
 
 ## Open, needs a decision
 
-- **The free plan is the binding constraint now.** It caps new sessions at 5
-  per minute for TTS and 5 for STT, which breaks the sixth judge to open the
-  link, and it is almost certainly why the Gateway catalog is closed. Both
-  problems have the same fix.
+- ~~The free plan is the binding constraint.~~ **Upgraded 1 Nov.** It lifted
+  the 5-sessions-per-minute caps and opened the Gateway catalog, which is what
+  made `gemini-2.5-flash-lite` available.
 - Audition the three grown-ups. Casting so far is on latency only.

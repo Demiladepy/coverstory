@@ -216,6 +216,9 @@ export default function Spike() {
       busy.current = true;
       setHolding(false);
       setStatus("Finalising…");
+      // Anything still batched belongs to this turn — send it before asking
+      // for the turn to end, or the tail of the last word is lost.
+      mic.current?.flush();
       stt.current?.forceEndpoint();
     };
 

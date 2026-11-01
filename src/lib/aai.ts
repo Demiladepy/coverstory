@@ -54,12 +54,13 @@ export async function mintTtsToken(expiresInSeconds = 60, maxSessionSeconds = 24
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
 /**
- * The only model this account can reach that is both quick and coherent.
- * Most ids in the Gateway catalog answer "does not have access" on this key;
- * `qwen3.5-4b-32k-fast` is reachable but slower and writes nonsense lines, and
- * it rejects `response_format` outright. Measured in scripts/probe.mjs.
+ * Picked on how well it tells four kinds of bad answer apart, not on speed.
+ * Scored against answers written to trip one flag each (scripts/probe.mjs):
+ * gemini 6/8, nemotron-nano 4/8, gemma 2/8, haiku-5-5 unparsable. The two
+ * faster models are only ~500 ms quicker and get the meter wrong, and the
+ * brain runs while the grown-up line is still playing, so it has the room.
  */
-export const BRAIN_MODEL = "gemma-4-31b";
+export const BRAIN_MODEL = "gemini-2.5-flash-lite";
 
 export type ChatResult = {
   content: string;
