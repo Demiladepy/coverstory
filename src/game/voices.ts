@@ -22,8 +22,15 @@ export type Grownup = {
   note: string;
 };
 
+/**
+ * Cast on measured speed, not on how they sound — these still need an audition.
+ * Median time to first audio over three runs each (scripts/probe.mjs):
+ * charles 254 ms, george 269 ms, jean 284 ms, michael 328 ms, paul 689 ms.
+ * Paul is erratic (1224/689/250) despite being built in, so Dad — the voice
+ * players reach for first — is Charles instead.
+ */
 export const GROWNUPS: Grownup[] = [
-  { id: "dad", label: "Dad", key: "1", voiceId: "aai-paul", note: "tired, flat, wants this over with" },
+  { id: "dad", label: "Dad", key: "1", voiceId: "aai-charles", note: "tired, flat, wants this over with" },
   { id: "mom", label: "Mom", key: "2", voiceId: "aai-mary", note: "warm, a little too helpful" },
   { id: "uncle", label: "Uncle", key: "3", voiceId: "aai-george", note: "loud, overfamiliar, unreliable" },
 ];

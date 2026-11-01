@@ -53,6 +53,14 @@ export async function mintTtsToken(expiresInSeconds = 60, maxSessionSeconds = 24
 
 export type ChatMessage = { role: "system" | "user" | "assistant"; content: string };
 
+/**
+ * The only model this account can reach that is both quick and coherent.
+ * Most ids in the Gateway catalog answer "does not have access" on this key;
+ * `qwen3.5-4b-32k-fast` is reachable but slower and writes nonsense lines, and
+ * it rejects `response_format` outright. Measured in scripts/probe.mjs.
+ */
+export const BRAIN_MODEL = "gemma-4-31b";
+
 export type ChatResult = {
   content: string;
   requestId: string;
@@ -66,16 +74,19 @@ export async function chat(opts: {
   messages: ChatMessage[];
   maxTokens?: number;
   temperature?: number;
+  /** ask for a JSON object back; gemma-4-31b honours this, qwen refuses it */
+  json?: boolean;
 }): Promise<ChatResult> {
   const started = Date.now();
   const res = await fetch(LLM_URL, {
     method: "POST",
     headers: { Authorization: apiKey(), "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: opts.model ?? "claude-sonnet-4-6",
+      model: opts.model ?? BRAIN_MODEL,
       messages: opts.messages,
       max_tokens: opts.maxTokens ?? 400,
       ...(opts.temperature !== undefined ? { temperature: opts.temperature } : {}),
+      ...(opts.json ? { response_format: { type: "json_object" } } : {}),
     }),
   });
 
