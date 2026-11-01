@@ -27,7 +27,16 @@ import { speakLine, type SpokenLine } from "@/lib/speak";
 import { GROWNUP_BY_ID } from "@/game/voices";
 import { LEVEL_BY_ID } from "@/game/levels";
 import { shapeForSpeech } from "@/game/shout";
-import type { GameEvent, LevelId, Speaker, VoiceId } from "@/lib/events";
+import {
+  CAUGHT_AT,
+  DEAD_AIR_GRACE_MS,
+  START_SUSPICION,
+  deadAir,
+  scoreTurn,
+  type Scored,
+  type TurnFacts,
+} from "@/game/score";
+import type { Claim, GameEvent, LevelId, Speaker, VoiceId } from "@/lib/events";
 
 export type Engine = {
   start: () => Promise<void>;
@@ -40,7 +49,11 @@ export type Engine = {
 
 type ErrorCode = Extract<GameEvent, { type: "error" }>["code"];
 
-type Line = { text: string; addressedTo: VoiceId | null };
+type Line = {
+  text: string;
+  addressedTo: VoiceId | null;
+  contradiction: { found: boolean; detail?: string } | null;
+};
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
@@ -67,10 +80,19 @@ export function createEngine(opts: {
   let heldVoice: VoiceId = "dad";
   let turnsSurvived = 0;
   let lines = 0;
+  let suspicion = START_SUSPICION;
+  let over = false;
+
+  /** who the visitor last asked for, and what they last said */
+  let askedFor: VoiceId | null = null;
+  let visitorSaid = "";
+  let deadAirTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** words from turns the model closed by itself, mid-hold */
   const carried = { text: "", words: [] as SttWord[] };
   const history: { speaker: Speaker; text: string }[] = [];
+  /** everything an adult has claimed out loud — what contradiction is judged against */
+  const claims: Claim[] = [];
 
   const emit = (event: GameEvent) => {
     if (!stopped) opts.onEvent(event);
@@ -104,7 +126,65 @@ export function createEngine(opts: {
       at: at(),
     });
     history.push({ speaker: "visitor", text: line.text });
+    askedFor = line.addressedTo;
+    visitorSaid = line.text;
     await waitOutAudio(spoken);
+  }
+
+  /**
+   * Move the meter. Returns true when that was the end of it.
+   *
+   * The meter only ever moves here, with its reasons attached, so the screen
+   * can always say why — a meter that climbs without telling you what you did
+   * is a meter you cannot learn to play against.
+   */
+  function applyScore(scored: Scored): boolean {
+    if (over) return true;
+    suspicion = Math.max(0, Math.min(CAUGHT_AT, suspicion + scored.delta));
+    emit({
+      type: "suspicion",
+      value: suspicion,
+      delta: scored.delta,
+      reasons: scored.reasons,
+      at: at(),
+    });
+
+    if (suspicion >= CAUGHT_AT) {
+      over = true;
+      clearDeadAir();
+      emit({
+        type: "level_end",
+        level: level.id,
+        result: "caught",
+        suspicion,
+        elapsedMs: at(),
+        at: at(),
+      });
+      return true;
+    }
+    return false;
+  }
+
+  function clearDeadAir() {
+    if (deadAirTimer) clearTimeout(deadAirTimer);
+    deadAirTimer = null;
+  }
+
+  /**
+   * Saying nothing is an answer, and a bad one. The grace window is generous
+   * on purpose — the player has to read the question, pick a grown-up and find
+   * the key, and punishing that would punish learning the game rather than
+   * playing it badly.
+   */
+  async function onDeadAir() {
+    if (stopped || over || holding || awaiting || !canSpeak) return;
+    canSpeak = false;
+    if (applyScore(deadAir())) return;
+
+    const line = await writeNextLine();
+    if (stopped || over) return;
+    await visitorSays(line);
+    if (!stopped) ready();
   }
 
   /** The visitor's next line, written while the grown-up is still talking. */
@@ -113,21 +193,29 @@ export function createEngine(opts: {
       const res = await fetch("/api/visitor", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ level: level.id, history }),
+        body: JSON.stringify({ level: level.id, history, claims }),
       });
       if (!res.ok) throw new Error(String(res.status));
       const data = (await res.json()) as Line;
-      return { text: data.text, addressedTo: data.addressedTo };
+      return {
+        text: data.text,
+        addressedTo: data.addressedTo,
+        contradiction: data.contradiction ?? null,
+      };
     } catch {
       // The visitor still has to say something, or the encounter just stops.
+      // A failed judgement is not a contradiction — never score on a guess.
       fail("brain_failed", "the visitor lost their thread for a moment");
-      return { text: "Sorry — say that again?", addressedTo: null };
+      return { text: "Sorry — say that again?", addressedTo: null, contradiction: null };
     }
   }
 
   function ready() {
+    if (over) return;
     canSpeak = true;
     emit({ type: "mic_state", state: "idle", at: at() });
+    clearDeadAir();
+    deadAirTimer = setTimeout(() => void onDeadAir(), DEAD_AIR_GRACE_MS);
   }
 
   async function onTurn(turn: SttTurn) {
@@ -180,29 +268,50 @@ export function createEngine(opts: {
     }
 
     history.push({ speaker: voice, text: shaped.text });
+    claims.push({ voice, text: shaped.text, level: level.id, at: at() });
     turnsSurvived += 1;
 
-    // Both of these start now. The model writes while the grown-up talks, so by
-    // the time the house is quiet the visitor already knows their line.
-    const won = turnsSurvived >= level.turnsToWin;
-    const next = won ? null : writeNextLine();
+    // Everything the code can judge is known the moment the words land. The one
+    // thing it cannot judge arrives with the visitor's next line, so the model
+    // is asked even on the turn that would win the level — being caught on the
+    // last word is a better ending than a free pass.
+    const facts: Omit<TurnFacts, "contradiction"> = {
+      transcript,
+      words,
+      voice,
+      askedFor,
+      visitorSaid,
+      baseline: mic?.baseline() ?? 0.05,
+      loudnessBetween: (s, e) => mic?.loudnessBetween(s, e) ?? 0,
+      priorClaims: claims.length - 1,
+    };
 
+    // The model writes while the grown-up talks, so by the time the house is
+    // quiet the visitor already knows their line and the meter can move.
+    const next = writeNextLine();
     await waitOutAudio(playerAudio);
     if (stopped) return;
 
-    if (!next) {
+    const line = await next;
+    if (stopped) return;
+
+    if (applyScore(scoreTurn({ ...facts, contradiction: line.contradiction }))) return;
+
+    if (turnsSurvived >= level.turnsToWin) {
+      over = true;
+      clearDeadAir();
       emit({
         type: "level_end",
         level: level.id,
         result: "won",
-        suspicion: 0,
+        suspicion,
         elapsedMs: at(),
         at: at(),
       });
       return;
     }
 
-    await visitorSays(await next);
+    await visitorSays(line);
     if (!stopped) ready();
   }
 
@@ -254,7 +363,11 @@ export function createEngine(opts: {
           at: at(),
         });
 
-        await visitorSays({ text: level.opener, addressedTo: level.expects });
+        await visitorSays({
+          text: level.opener,
+          addressedTo: level.expects,
+          contradiction: null,
+        });
         if (!stopped) ready();
       } catch (err) {
         fail("unknown", err instanceof Error ? err.message : "could not start");
@@ -262,7 +375,8 @@ export function createEngine(opts: {
     },
 
     hold(voice) {
-      if (stopped || holding || awaiting || !canSpeak || !mic) return;
+      if (stopped || over || holding || awaiting || !canSpeak || !mic) return;
+      clearDeadAir();
       holding = true;
       canSpeak = false;
       heldVoice = voice;
@@ -283,6 +397,7 @@ export function createEngine(opts: {
 
     stop() {
       stopped = true;
+      clearDeadAir();
       stt?.terminate();
       stt = null;
       mic?.stop();

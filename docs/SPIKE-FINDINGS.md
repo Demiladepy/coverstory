@@ -185,3 +185,64 @@ All three are in the browser spike at `/spike`.
   the 5-sessions-per-minute caps and opened the Gateway catalog, which is what
   made `gemini-2.5-flash-lite` available.
 - Audition the three grown-ups. Casting so far is on latency only.
+
+## The one judgement the model is trusted with
+
+Contradiction is the only thing scored by the model, and it is scored as one
+yes/no question folded into the call that writes the visitor's next line —
+the same thought, not two round trips.
+
+Tested against five answers with one claim on the record (`node` against the
+live route, with the dev server up):
+
+| answer, against "I am at work until about nine tonight" | expected | got |
+| --- | --- | --- |
+| "She is upstairs asleep, actually." | clash | clash |
+| "I will be back a bit later, I am not sure exactly when." | vague | vague |
+| "Anyway, did you see the game last night?" | subject change | subject change |
+| "Honestly I could not tell you where she is right now." | not knowing | not knowing |
+| "She never works evenings, never has." | clash | clash |
+
+**Five of five, and no false positives.** The first pass missed the last one —
+a general claim ruling out a specific one — so the prompt gained a one-line
+example of that shape. The example is deliberately about something else
+entirely ("nobody here drives" against "he took the car to the shop"), because
+an example drawn from the test case teaches the model that case rather than the
+shape of the problem; swapped for a neutral one, all five still pass.
+
+The asymmetry is on purpose. A missed contradiction costs the player nothing; a
+false one costs 26 points for something they did not do. Of the two ways to be
+wrong, only one is unfair, so the prompt is written to be conservative and the
+code refuses to score a contradiction when there is nothing on the record to
+contradict.
+
+## What the code scores, and how hard
+
+Checked by compiling `src/game/score.ts` on its own and running hand-written
+answers through it — it takes facts and returns points, with no model, clock or
+audio in the way, which is the whole reason it is shaped that way.
+
+| answer | points |
+| --- | --- |
+| steady, in the voice that was asked for | **−8** |
+| answered as Uncle when they asked for Mom | +18 |
+| "My mom said I'm not allowed to open the door" | +14 |
+| the same words, mumbled (mean word confidence 0.41) | +14 |
+| "um uh I dunno like um" | +10 |
+| a 1.4 s pause in the middle of a sentence | +10 |
+| contradicting a claim on the record | +26 |
+| saying nothing at all for seven seconds | +12 |
+
+Starting at 10 and caught at 100, a player who gets everything wrong lasts about
+four turns, and levels run three to five.
+
+Two rules fell out of writing the tests rather than out of the design:
+
+- **Conviction only counts when nothing else went wrong.** The first pass
+  awarded it alongside the penalties, so a confident kid-slip scored +6 instead
+  of +14 — which would teach the player that volume beats keeping the story
+  straight.
+- **A long pause has to cost something.** It only suppressed the conviction
+  bonus at first, so a 1.4 s stall mid-sentence scored exactly zero. Stalling
+  and dodging look the same from the doorstep, so it scores as evasion and says
+  so.

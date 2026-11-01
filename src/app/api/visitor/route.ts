@@ -7,25 +7,36 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Writes the visitor's next line.
+ * The visitor's next line, and the one judgement the model is trusted with.
  *
- * The model's whole job here is the character and the pressure — it decides
- * what to ask and who to ask, and nothing else. It is deliberately not asked to
- * judge the answer or move the meter; that is scored in code, for reasons the
- * spike findings set out at length.
+ * It has exactly two jobs: be the character, and answer one yes/no question —
+ * does what the house just said clash with something it said earlier? It is
+ * never asked how suspicious that is. The meter is scored in code, for reasons
+ * docs/SPIKE-FINDINGS.md sets out at length.
+ *
+ * The two jobs are one call rather than two, because they are the same thought:
+ * a visitor notices the thing that does not add up and *then* decides what to
+ * ask next. Splitting them would cost a second round trip to learn less.
  *
  * This runs while the grown-up's line is still playing, so it has two or three
- * seconds of cover. Accuracy of character beats speed here.
+ * seconds of cover. Being right matters more than being quick.
  */
 
 type Body = {
   level: LevelId;
   history: { speaker: string; text: string }[];
+  /** what the adults of this house have claimed out loud, oldest first */
+  claims?: { voice: string; text: string }[];
   /** open the connection and wake the model, throwing the answer away */
   warm?: boolean;
 };
 
-type Written = { line: string; addressed_to: string | null };
+type Written = {
+  line: string;
+  addressed_to: string | null;
+  contradicts?: boolean;
+  contradiction?: string;
+};
 
 /** If the model falls over, the visitor still has to say something. */
 const PROD = [
@@ -42,9 +53,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
 
-  // The first completion of a run costs about three seconds and every one
-  // after it costs one. That first one would land on the player's first answer,
-  // which is the worst place for it, so it is spent here instead — during the
+  // The first completion of a run costs about three seconds and every one after
+  // it costs one. That first one would land on the player's first answer, which
+  // is the worst place for it, so it is spent here instead — during the
   // visitor's opening line, where there is four seconds of audio to hide in.
   if (body.warm) {
     await chat({ messages: [{ role: "user", content: "ok" }], maxTokens: 1 }).catch(() => {});
@@ -53,6 +64,8 @@ export async function POST(req: Request) {
 
   const level = LEVEL_BY_ID[body.level];
   if (!level) return NextResponse.json({ error: "unknown_level" }, { status: 400 });
+
+  const claims = (body.claims ?? []).slice(-8);
 
   const system = [
     `You are ${level.visitorName}, at the door of a family home.`,
@@ -70,9 +83,27 @@ export async function POST(req: Request) {
     `  something feels off, ask an ordinary question about it instead.`,
     `- The adults in this house are ${Object.values(VOICE_LABEL).join(", ")}. Only`,
     `  address one by name once you have reason to think they are there.`,
+    ...(claims.length
+      ? [
+          ``,
+          `This house has already told you:`,
+          ...claims.map((c) => `- ${VOICE_LABEL[c.voice as VoiceId] ?? "someone"}: "${c.text}"`),
+          ``,
+          `Before you reply, check the last thing they said against that list. Set`,
+          `"contradicts" to true only if the two cannot both be true — a different`,
+          `person, a different place, a different time for the same thing. A`,
+          `general claim counts when it rules out a specific one: "nobody here`,
+          `drives" cannot stand beside "he took the car to the shop".`,
+          `Vagueness is not a contradiction. Changing the subject is not a`,
+          `contradiction. Not knowing something is not a contradiction. If it is`,
+          `true, say what clashes in a few words, and let your line show you`,
+          `noticed without spelling it out.`,
+        ]
+      : []),
     ``,
     `Answer as JSON and nothing else:`,
-    `{"line": "<what you say>", "addressed_to": "dad" | "mom" | "uncle" | null}`,
+    `{"line": "<what you say>", "addressed_to": "dad" | "mom" | "uncle" | null,`,
+    ` "contradicts": true | false, "contradiction": "<what clashes, or empty>"}`,
     `Set "addressed_to" when you are speaking to one grown-up in particular,`,
     `otherwise null.`,
   ].join("\n");
@@ -92,7 +123,7 @@ export async function POST(req: Request) {
   ];
 
   try {
-    const result = await chat({ messages, json: true, maxTokens: 160, temperature: 0.9 });
+    const result = await chat({ messages, json: true, maxTokens: 200, temperature: 0.9 });
     const written = extractJson<Written>(result.content);
     const line = written?.line?.trim();
 
@@ -102,9 +133,19 @@ export async function POST(req: Request) {
     const addressedTo: VoiceId | null =
       to === "dad" || to === "mom" || to === "uncle" ? to : null;
 
-    return NextResponse.json({ text: line, addressedTo, latencyMs: result.latencyMs });
+    // A contradiction claimed with nothing to contradict is the model being
+    // agreeable, not observant.
+    const found = Boolean(written?.contradicts) && claims.length > 0;
+    const detail = written?.contradiction?.trim();
+
+    return NextResponse.json({
+      text: line,
+      addressedTo,
+      contradiction: { found, detail: found ? detail : undefined },
+      latencyMs: result.latencyMs,
+    });
   } catch {
     const text = PROD[Math.min(body.history.length >> 1, PROD.length - 1)];
-    return NextResponse.json({ text, addressedTo: null, fallback: true });
+    return NextResponse.json({ text, addressedTo: null, contradiction: null, fallback: true });
   }
 }

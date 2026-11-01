@@ -19,6 +19,7 @@ import Link from "next/link";
 import { createEngine, type Engine } from "@/game/engine";
 import { LEVELS } from "@/game/levels";
 import { GROWNUPS } from "@/game/voices";
+import { REASON_LABEL, START_SUSPICION, type ScoredReason } from "@/game/score";
 import { VOICE_KEYS, VOICE_LABEL, type GameEvent, type LevelId, type VoiceId } from "@/lib/events";
 
 type Phase = "ready" | "opening" | "playing" | "over";
@@ -35,7 +36,8 @@ export default function Play() {
   const [lastVoice, setLastVoice] = useState<VoiceId | null>(null);
   const [micState, setMicState] = useState<"idle" | "listening" | "finalising">("idle");
   const [partial, setPartial] = useState("");
-  const [suspicion, setSuspicion] = useState(0);
+  const [suspicion, setSuspicion] = useState(START_SUSPICION);
+  const [reasons, setReasons] = useState<ScoredReason[]>([]);
   const [result, setResult] = useState<"won" | "caught" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [held, setHeld] = useState<VoiceId | null>(null);
@@ -61,6 +63,7 @@ export default function Play() {
         break;
       case "suspicion":
         setSuspicion(event.value);
+        setReasons(event.reasons);
         break;
       case "mic_state":
         setMicState(event.state);
@@ -95,6 +98,8 @@ export default function Play() {
     setPartial("");
     setResult(null);
     setHeld(null);
+    setSuspicion(START_SUSPICION);
+    setReasons([]);
   }, []);
 
   useEffect(() => () => engine.current?.stop(), []);
@@ -200,9 +205,24 @@ export default function Play() {
                 style={{ width: `${Math.min(100, suspicion)}%` }}
               />
             </div>
-            <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>
-              They want {want}.
-            </p>
+            {reasons.length > 0 ? (
+              <div className="row" style={{ gap: 6, marginTop: 12 }}>
+                {reasons.map((r, i) => (
+                  <span key={`${r.reason}-${i}`} className={`tick ${r.points > 0 ? "up" : "down"}`}>
+                    {REASON_LABEL[r.reason]}
+                    <b>
+                      {r.points > 0 ? "+" : ""}
+                      {r.points}
+                    </b>
+                    {r.detail && <em>{r.detail}</em>}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="faint" style={{ fontSize: 12, margin: "10px 0 0" }}>
+                They want {want}.
+              </p>
+            )}
           </div>
 
           <div className="panel scene">
@@ -269,11 +289,11 @@ export default function Play() {
 
           {phase === "over" && (
             <div className="panel">
-              <h2>{result === "won" ? "They left" : "Done"}</h2>
-              <p className="dim" style={{ margin: "0 0 14px", lineHeight: 1.6 }}>
+              <h2>{result === "won" ? "They left" : "They stopped believing you"}</h2>
+              <p className="dim" style={{ margin: "0 0 14px", lineHeight: 1.6, maxWidth: "52ch" }}>
                 {result === "won"
-                  ? "You talked them off the step. The story held — this time."
-                  : "That is as far as this one goes."}
+                  ? `You talked them off the step with the meter at ${suspicion}. The story held — this time.`
+                  : "Something in it stopped adding up, and they heard it."}
               </p>
               <div className="row">
                 <button className="primary" onClick={stop}>

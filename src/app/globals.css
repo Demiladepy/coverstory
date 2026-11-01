@@ -212,3 +212,23 @@ label.pick {
 .voicekey.on .key { color: var(--warm-deep); }
 
 .talk { margin-bottom: 16px; }
+
+/* Why the meter moved. Shown next to it, because a meter that climbs without
+   saying what you did is a meter you cannot learn to play against. */
+.tick {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 4px 9px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  font-size: 12px;
+}
+
+.tick b { font-family: var(--mono); font-size: 11px; }
+.tick em { font-style: normal; color: var(--ink-faint); font-size: 11px; }
+.tick.up { border-color: rgba(217, 84, 77, 0.45); }
+.tick.up b { color: var(--alarm); }
+.tick.down { border-color: rgba(95, 184, 122, 0.4); }
+.tick.down b { color: var(--good); }
