@@ -44,6 +44,58 @@ measured problem.
 That leaves roughly **1200 ms of headroom for the transcript half**, which the
 browser spike measures. Hold Space at `/spike` to fill it in.
 
+## The 41-second gap was never a gap
+
+The first browser run showed 40885 ms between releasing the key and the final
+transcript. It is not a latency. `finaliseMs` was `performance.now() -
+releasedAt`, `releasedAt` was still **0**, and `performance.now()` counts from
+page load — so the number printed was *how long the page had been open*, which
+happened to be 40.9 s.
+
+For that to happen, a final turn had to arrive **before the key was ever
+released**. It did, because the mic was streaming continuously from the moment
+Start was pressed rather than only while the key was down, so the model
+endpointed on its own at a pause and the old `onTurn` timed that against a
+release that had not happened.
+
+Three fixes, and the third is the one that matters:
+
+- The mic gate opens on key down and shuts on key up. Between turns nothing is
+  captured, sent or timed, so our audio clock and the server's stay the same
+  clock — which is also what keeps word timings lined up with the loudness
+  track.
+- A turn that arrives while no release is pending is **carried**, not dropped:
+  its words are glued onto the turn the release does produce. The model can
+  still end a turn at a pause mid-hold, and those words are the player's.
+- Timing a turn against a release that has not happened is now structurally
+  impossible, because that path returns early.
+
+### What ForceEndpoint actually costs
+
+Measured with no microphone at all, by synthesising a line, streaming it to the
+socket at exactly real time the way a mic would, and releasing at the end
+(`node scripts/probe.mjs endpoint`):
+
+| take | gated — stream stops at release | ungated — 3 s of silence after |
+| --- | --- | --- |
+| 1 | 315 ms | 1377 ms |
+| 2 | 179 ms | 110 ms |
+| 3 | 807 ms | 216 ms |
+
+**Median 315 ms gated.** The first take looked like proof that trailing audio
+delays the final; two more takes say that was noise. At three seconds of
+silence the gate makes no reliable difference to *speed* — it is a correctness
+fix, not a latency fix, and the spread here is the server's own variance.
+
+So the whole gap is about **315 ms of transcript plus 270 ms of voice ≈ 585
+ms**, against a 1500 ms budget. None of the plan's three fallbacks are needed.
+
+### Hesitations survive, confirmed without a mic
+
+The probe's line goes in as "Hi, yeah, sorry, um, my dad is in the shower" and
+comes back with the `um` intact on `universal-3-6-pro`. No need to fall back to
+`universal-streaming-english`.
+
 ## The shout trick works
 
 Writing the loud words in CAPS and giving the line a rising tail both change

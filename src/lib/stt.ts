@@ -22,6 +22,8 @@ export type SttOptions = {
   speechModel?: "universal-3-6-pro" | "universal-3-5-pro" | "universal-streaming-english";
   /** Universal Streaming only. Ignored by the pro models. */
   formatTurns?: boolean;
+  /** every parsed frame, with the wall clock, so a spike can see the sequence */
+  onAny?: (message: Record<string, unknown>, atMs: number) => void;
   onBegin?: (info: { id: string; configuration: Record<string, unknown> }) => void;
   onPartial?: (text: string) => void;
   onTurn?: (turn: SttTurn) => void;
@@ -70,6 +72,8 @@ export async function openStt(opts: SttOptions): Promise<SttSession> {
     } catch {
       return;
     }
+
+    opts.onAny?.(message, performance.now());
 
     switch (message.type) {
       case "Begin":

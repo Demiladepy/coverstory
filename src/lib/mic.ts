@@ -7,22 +7,25 @@
  * same timeline, so a word can be looked up by when it was said and scored for
  * how hard it was said. That is what turns a shout into CAPS in the adult's
  * mouth — cheap, and the moment people laugh.
+ *
+ * The gate is the push-to-talk key. While it is shut nothing is captured, sent
+ * or timed, so the server's audio clock and ours stay the same clock. Leaving
+ * it open between turns would stream the empty house at the transcript service
+ * and put every word's timing out by however long the player hesitated.
  */
 
 export type MicFrame = { pcm: Int16Array; rms: number; atMs: number };
 
 export type Mic = {
-  /** ms of audio captured since the session started */
+  /** ms of audio actually sent — the same clock the server's word times use */
   elapsedMs: () => number;
-  /**
-   * Push whatever is still buffered. Call this before ForceEndpoint or the
-   * last fraction of a second — often the end of the last word — never
-   * reaches the transcript.
-   */
-  flush: () => void;
+  /** start passing audio through: the key went down */
+  open: () => void;
+  /** push whatever is part-filled and stop passing: the key came up */
+  close: () => void;
   /** peak loudness between two points on the session timeline, 0..1 */
   loudnessBetween: (startMs: number, endMs: number) => number;
-  /** loudness over the whole capture so far, used as the speaker's baseline */
+  /** loudness over everything captured so far, used as the speaker's baseline */
   baseline: () => number;
   stop: () => void;
 };
@@ -61,6 +64,7 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
   const source = ctx.createMediaStreamSource(stream);
   const node = new AudioWorkletNode(ctx, "capture");
 
+  let gateOpen = false;
   let samples = 0;
   const track: { atMs: number; rms: number }[] = [];
 
@@ -84,6 +88,8 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
   };
 
   node.port.onmessage = (event: MessageEvent<Float32Array>) => {
+    if (!gateOpen) return;
+
     const float = event.data;
     const atMs = (samples / ctx.sampleRate) * 1000;
     samples += float.length;
@@ -115,7 +121,16 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
   return {
     elapsedMs: () => (samples / ctx.sampleRate) * 1000,
 
-    flush: emit,
+    open() {
+      gateOpen = true;
+    },
+
+    close() {
+      // The part-filled chunk belongs to this turn — send it before the caller
+      // asks for the turn to end, or the tail of the last word is lost.
+      emit();
+      gateOpen = false;
+    },
 
     loudnessBetween(startMs, endMs) {
       let peak = 0;
@@ -137,6 +152,7 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
     },
 
     stop() {
+      gateOpen = false;
       node.port.onmessage = null;
       node.disconnect();
       source.disconnect();

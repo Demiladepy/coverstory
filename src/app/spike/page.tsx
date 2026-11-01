@@ -22,7 +22,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { startMic, type Mic } from "@/lib/mic";
-import { openStt, type SttSession, type SttTurn } from "@/lib/stt";
+import { openStt, type SttSession, type SttTurn, type SttWord } from "@/lib/stt";
 import { speakLine } from "@/lib/speak";
 import { GROWNUPS } from "@/game/voices";
 import type { VoiceId } from "@/lib/events";
@@ -67,6 +67,7 @@ export default function Spike() {
   const [voice, setVoice] = useState<VoiceId>("dad");
   const [rows, setRows] = useState<Measurement[]>([]);
   const [sttConfig, setSttConfig] = useState<Record<string, unknown> | null>(null);
+  const [trace, setTrace] = useState<string[]>([]);
 
   const mic = useRef<Mic | null>(null);
   const stt = useRef<SttSession | null>(null);
@@ -77,6 +78,9 @@ export default function Spike() {
   const turnStartMs = useRef(0);
   const counter = useRef(0);
   const busy = useRef(false);
+  // Words from turns the model ended on its own, mid-hold, waiting to be glued
+  // onto the turn the key release produces.
+  const carried = useRef<{ text: string; words: SttWord[] }>({ text: "", words: [] });
 
   // Keep the live values readable from the socket callback without making the
   // socket depend on them and reconnect every time a dropdown changes.
@@ -97,7 +101,20 @@ export default function Spike() {
   useEffect(() => teardown, [teardown]);
 
   const onTurn = useCallback(async (turn: SttTurn) => {
-    if (!turn.transcript.trim()) {
+    if (!busy.current) {
+      // The model ended a turn by itself, at a pause, while the key was still
+      // down. That is not the player letting go — carry the words and glue them
+      // onto the turn the release does produce, or they are simply lost.
+      carried.current.text = `${carried.current.text} ${turn.transcript}`.trim();
+      carried.current.words.push(...turn.words);
+      return;
+    }
+
+    const transcript = `${carried.current.text} ${turn.transcript}`.trim();
+    const words = [...carried.current.words, ...turn.words];
+    carried.current = { text: "", words: [] };
+
+    if (!transcript) {
       setStatus("Nothing came through — try again, a little louder.");
       busy.current = false;
       return;
@@ -107,8 +124,8 @@ export default function Spike() {
 
     // Loudness over the words of this turn, against how loud this speaker
     // usually is. Word times are on the session timeline, same as the track.
-    const first = turn.words[0]?.start ?? turnStartMs.current;
-    const last = turn.words[turn.words.length - 1]?.end ?? first + 1000;
+    const first = words[0]?.start ?? turnStartMs.current;
+    const last = words[words.length - 1]?.end ?? first + 1000;
     const peak = mic.current?.loudnessBetween(first, last) ?? 0;
     const baseline = mic.current?.baseline() ?? 0.05;
 
@@ -121,7 +138,7 @@ export default function Spike() {
       const spoken = await speakLine({
         ctx: ctx.current!,
         token: ttsToken.current,
-        text: turn.transcript,
+        text: transcript,
         voiceId: grownup.voiceId,
       });
 
@@ -133,8 +150,8 @@ export default function Spike() {
           finaliseMs,
           speakMs: spoken.firstAudioMs,
           gapMs: finaliseMs + spoken.firstAudioMs,
-          transcript: turn.transcript,
-          fillers: findFillers(turn.transcript),
+          transcript,
+          fillers: findFillers(transcript),
           shouted: peak > baseline * 1.7,
           peak,
           baseline,
@@ -175,6 +192,16 @@ export default function Spike() {
         speechModel: model,
         // Only Universal Streaming reads this; the pro models ignore it.
         ...(model === "universal-streaming-english" ? { formatTurns: false } : {}),
+        onAny: (message, atMs) => {
+          // The sequence, not just the answer. If a final lands late, this says
+          // whether the socket was quiet or busy while we waited.
+          const audioS = ((mic.current?.elapsedMs() ?? 0) / 1000).toFixed(1);
+          const since = releasedAt.current ? Math.round(atMs - releasedAt.current) : 0;
+          const label = `${message.type}${message.end_of_turn ? " · final" : ""}`;
+          setTrace((prev) =>
+            [`${label} — ${audioS}s audio sent, ${since} ms since release`, ...prev].slice(0, 14),
+          );
+        },
         onBegin: (info) => setSttConfig(info.configuration),
         onPartial: setPartial,
         onTurn: (turn) => void onTurn(turn),
@@ -204,6 +231,10 @@ export default function Spike() {
       e.preventDefault();
       pressedAt.current = performance.now();
       turnStartMs.current = mic.current?.elapsedMs() ?? 0;
+      // The gate opens here, not at Start. Streaming the empty house between
+      // turns would put every word's timing out by however long the player
+      // hesitated, and bill for the silence.
+      mic.current?.open();
       setHolding(true);
       setPartial("");
       setStatus("Listening…");
@@ -216,9 +247,9 @@ export default function Spike() {
       busy.current = true;
       setHolding(false);
       setStatus("Finalising…");
-      // Anything still batched belongs to this turn — send it before asking
-      // for the turn to end, or the tail of the last word is lost.
-      mic.current?.flush();
+      // Shutting the gate pushes the part-filled chunk, so the tail of the
+      // last word is already on the wire when the turn is asked to end.
+      mic.current?.close();
       stt.current?.forceEndpoint();
     };
 
@@ -311,6 +342,17 @@ export default function Spike() {
           {partial || " "}
         </div>
       </div>
+
+      {trace.length > 0 && (
+        <div className="panel">
+          <h2>What the socket did</h2>
+          <div className="mono faint" style={{ fontSize: 12, lineHeight: 1.7 }}>
+            {trace.map((line, i) => (
+              <div key={`${i}-${line}`}>{line}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {rows.length > 0 && (
         <>

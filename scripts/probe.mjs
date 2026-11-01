@@ -294,16 +294,163 @@ async function budget() {
   console.log(`  a ${perRun}-character run at $15 per million: $${((perRun * 15) / 1e6).toFixed(4)}`);
 }
 
+/**
+ * The question the browser spike could not answer on its own: when we say
+ * ForceEndpoint, how fast does the final turn come back?
+ *
+ * A microphone makes this hard to read, because a human is also deciding when
+ * to let go. So this synthesises a line, streams it to the transcript socket at
+ * exactly real time the way a mic would, and then measures the release.
+ *
+ * It runs the same audio twice. Once gated — the stream stops dead at the
+ * release, which is what push-to-talk should do. Once ungated — the stream
+ * keeps running afterwards, which is what the browser was doing by accident.
+ * The difference between the two numbers is the bug.
+ */
+async function endpointing() {
+  heading("ForceEndpoint — gated against ungated");
+
+  const line =
+    "Hi, yeah, sorry, um, my dad is in the shower right now, so he can't come to the door.";
+
+  const res = await fetch("https://tts.us.assemblyai.com/v1/speech/events", {
+    method: "POST",
+    headers: { ...auth, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: line,
+      voice_id: "aai-mary",
+      language: "english",
+      sample_rate: 16000,
+      encoding: "pcm_s16le",
+    }),
+  });
+
+  if (!res.ok) {
+    console.log(`  could not synthesise test audio: ${res.status} ${(await res.text()).slice(0, 200)}`);
+    return;
+  }
+  console.log(`  synthesised at ${res.headers.get("x-tts-sample-rate") ?? "?"} Hz`);
+
+  const chunks = [];
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffered = "";
+  let event = "";
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    buffered += decoder.decode(value, { stream: true });
+    const lines = buffered.split("\n");
+    buffered = lines.pop() ?? "";
+    for (const l of lines) {
+      if (l.startsWith("event: ")) { event = l.slice(7).trim(); continue; }
+      if (!l.startsWith("data: ")) continue;
+      const data = JSON.parse(l.slice(6));
+      if (event === "Audio") chunks.push(Buffer.from(data.audio, "base64"));
+    }
+  }
+
+  const pcm = Buffer.concat(chunks);
+  const seconds = pcm.length / 2 / 16000;
+  console.log(`  ${pcm.length} bytes, ${seconds.toFixed(1)} s of audio
+`);
+
+  for (const gated of [true, false]) {
+    const label = gated ? "gated (stream stops at release)" : "ungated (stream keeps running)";
+    const result = await streamAndRelease(pcm, gated);
+    console.log(`  ${pad(label, 34)} ${pad(result.finalMs < 0 ? "no final" : ms(result.finalMs), 10)} ${result.transcript.slice(0, 54)}`);
+    for (const t of result.trace) console.log(`      ${t}`);
+    console.log("");
+  }
+}
+
+/** One take: stream pcm at real time, ForceEndpoint, wait for the final. */
+async function streamAndRelease(pcm, gated) {
+  const tokenRes = await fetch(
+    "https://streaming.assemblyai.com/v3/token?expires_in_seconds=120&max_session_duration_seconds=180",
+    { headers: auth },
+  );
+  const { token } = await tokenRes.json();
+
+  const params = new URLSearchParams({
+    token,
+    sample_rate: "16000",
+    encoding: "pcm_s16le",
+    speech_model: "universal-3-6-pro",
+  });
+
+  const ws = new WebSocket(`wss://streaming.assemblyai.com/v3/ws?${params}`);
+  const trace = [];
+  let releasedAt = 0;
+  let finalMs = -1;
+  let transcript = "";
+  let settle;
+  const done = new Promise((r) => { settle = r; });
+
+  ws.addEventListener("message", (e) => {
+    if (typeof e.data !== "string") return;
+    const m = JSON.parse(e.data);
+    if (m.type === "Turn") {
+      const since = releasedAt ? Math.round(performance.now() - releasedAt) : 0;
+      trace.push(`${m.end_of_turn ? "final " : "partial"} +${since} ms  "${String(m.transcript).slice(0, 40)}"`);
+      if (m.end_of_turn && m.transcript) {
+        if (finalMs < 0) { finalMs = since; transcript = m.transcript; settle(); }
+      }
+    }
+  });
+
+  await new Promise((r) => ws.addEventListener("open", r, { once: true }));
+
+  // 64 ms chunks, paced off a fixed start so the clock does not drift — this
+  // is a microphone's behaviour, not a file's.
+  const CHUNK = 2048; // bytes = 1024 samples = 64 ms
+  const startedAt = performance.now();
+  let sent = 0;
+  for (let i = 0; i < pcm.length; i += CHUNK) {
+    const slice = pcm.subarray(i, Math.min(i + CHUNK, pcm.length));
+    ws.send(slice);
+    sent += slice.length;
+    const due = startedAt + (sent / 2 / 16000) * 1000;
+    const wait = due - performance.now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  }
+
+  releasedAt = performance.now();
+  ws.send(JSON.stringify({ type: "ForceEndpoint" }));
+
+  // The bug, reproduced: audio carries on past the release. Three seconds of
+  // room tone is enough to show what it costs.
+  let silence = null;
+  if (!gated) {
+    const quiet = Buffer.alloc(CHUNK);
+    let n = 0;
+    silence = setInterval(() => {
+      if (n++ > 46 || ws.readyState !== WebSocket.OPEN) { clearInterval(silence); return; }
+      ws.send(quiet);
+    }, 64);
+  }
+
+  const timeout = setTimeout(() => settle(), 15000);
+  await done;
+  clearTimeout(timeout);
+  if (silence) clearInterval(silence);
+  ws.send(JSON.stringify({ type: "Terminate" }));
+  ws.close();
+
+  return { finalMs, transcript, trace: trace.slice(-5) };
+}
+
 async function main() {
   console.log("\x1b[1mCover Story — API probe\x1b[0m");
   console.log(new Date().toISOString());
 
-  if (process.argv[2] && process.argv[2] !== "all") { if (process.argv[2] === "brain") { await brain(); return; } if (process.argv[2] === "voices") { await voices(); return; } }
+  if (process.argv[2] && process.argv[2] !== "all") { if (process.argv[2] === "brain") { await brain(); return; } if (process.argv[2] === "voices") { await voices(); return; } if (process.argv[2] === "endpoint") { await endpointing(); return; } }
   await tokens();
   const voiceResults = await voices();
   await prosody();
   await brain();
   await budget();
+  await endpointing();
 
   heading("What this means for the loop");
   const grownups = voiceResults.filter((r) => r.kind === "built-in" && r.warm > 0);
