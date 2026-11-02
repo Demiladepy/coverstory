@@ -17,9 +17,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createEngine, type Engine } from "@/game/engine";
-import { LEVELS } from "@/game/levels";
+import { LEVELS, LEVEL_BY_ID } from "@/game/levels";
 import { GROWNUPS } from "@/game/voices";
-import { REASON_LABEL, START_SUSPICION, type ScoredReason } from "@/game/score";
+import { REASON_LABEL, type ScoredReason } from "@/game/score";
 import {
   EXCUSE_KEYS,
   PREP_SECONDS,
@@ -60,10 +60,11 @@ export default function Play() {
   const [lastVoice, setLastVoice] = useState<VoiceId | null>(null);
   const [micState, setMicState] = useState<"idle" | "listening" | "finalising">("idle");
   const [partial, setPartial] = useState("");
-  const [suspicion, setSuspicion] = useState(START_SUSPICION);
+  const [suspicion, setSuspicion] = useState(LEVELS[0].startSuspicion);
   const [reasons, setReasons] = useState<ScoredReason[]>([]);
   const [result, setResult] = useState<"won" | "caught" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [errorCode, setErrorCode] = useState<string | null>(null);
   const [held, setHeld] = useState<VoiceId | null>(null);
   const [drafts, setDrafts] = useState<Excuse[]>(BLANK);
   const [prepLeft, setPrepLeft] = useState(PREP_SECONDS);
@@ -117,6 +118,7 @@ export default function Play() {
         break;
       case "error":
         setError(event.message);
+        setErrorCode(event.code);
         // A run that cannot continue is not a loss. Showing "they stopped
         // believing you" because the microphone was refused blames the player
         // for something the browser did.
@@ -127,6 +129,8 @@ export default function Play() {
 
   const begin = useCallback(async () => {
     setError(null);
+    setErrorCode(null);
+    setSuspicion(LEVEL_BY_ID[levelId].startSuspicion);
     setPhase("opening");
     const made = createEngine({ level: levelId, onEvent });
     engine.current = made;
@@ -143,13 +147,13 @@ export default function Play() {
     setPartial("");
     setResult(null);
     setHeld(null);
-    setSuspicion(START_SUSPICION);
+    setSuspicion(LEVEL_BY_ID[levelId].startSuspicion);
     setReasons([]);
     setDrafts(BLANK);
     setPrepLeft(PREP_SECONDS);
     setSpent([]);
     setRecording(null);
-  }, []);
+  }, [levelId]);
 
   const submitPrep = useCallback(async () => {
     setPhase("opening");
@@ -323,10 +327,13 @@ export default function Play() {
 
       {phase === "failed" && (
         <div className="panel">
-          <h2>That one is not on you</h2>
+          <h2>{errorCode === "budget" ? "Come back later" : "That one is not on you"}</h2>
           <p className="dim" style={{ margin: "0 0 14px", lineHeight: 1.6, maxWidth: "52ch" }}>
-            The run stopped before it started. Allow the microphone for this page and go
-            again — the whole game is your voice, so there is no playing around it.
+            {errorCode === "mic_denied"
+              ? "Allow the microphone for this page and go again — the whole game is your voice, so there is no playing around it."
+              : errorCode === "budget"
+                ? "This link has had its share of runs for the hour. It is a demo running on someone's own key, so there is a limit on it."
+                : "The run stopped before it started, and not because of anything you did. Going again usually works."}
           </p>
           <button className="primary" onClick={stop}>
             Try again

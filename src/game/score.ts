@@ -19,6 +19,7 @@
 import type { SttWord } from "@/lib/stt";
 import type { SuspicionReason, VoiceId } from "@/lib/events";
 
+/** Levels set their own starting wariness; this is the floor a level may use. */
 export const START_SUSPICION = 10;
 export const CAUGHT_AT = 100;
 

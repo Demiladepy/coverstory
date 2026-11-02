@@ -26,6 +26,15 @@ export type Level = {
   persona: string;
   /** survive this many of their questions and the level is won */
   turnsToWin: number;
+  /**
+   * How wary they are before you have said a word, 0..100.
+   *
+   * This is the difficulty curve, and it is one honest number rather than a
+   * set of multipliers: a pizza driver has no reason to doubt you, and an aunt
+   * who has known this family for twenty years starts a quarter of the way to
+   * sure. Estimates until someone has actually been caught by them.
+   */
+  startSuspicion: number;
 };
 
 export const LEVELS: Level[] = [
@@ -43,6 +52,7 @@ export const LEVELS: Level[] = [
       "but you have been burned before by kids ordering on a parent's card, so if something feels " +
       "off you ask one plain question about it.",
     turnsToWin: 3,
+    startSuspicion: 10,
   },
   {
     id: "neighbour",
@@ -58,6 +68,7 @@ export const LEVELS: Level[] = [
       "You ask after people by name. You notice things — cars, bins, curtains — and you mention " +
       "what you noticed. You are not hostile, you are interested, which is worse.",
     turnsToWin: 4,
+    startSuspicion: 15,
   },
   {
     id: "school",
@@ -73,6 +84,7 @@ export const LEVELS: Level[] = [
       "by silence. You work from a script and you will repeat a question you did not get an " +
       "answer to. You ask for names, dates and spellings, because that is the job.",
     turnsToWin: 4,
+    startSuspicion: 18,
   },
   {
     id: "boss",
@@ -89,6 +101,7 @@ export const LEVELS: Level[] = [
       "expect each of them to answer. You remember what this family told you last year and you " +
       "bring it up. You do not take a hint.",
     turnsToWin: 5,
+    startSuspicion: 25,
   },
 ];
 

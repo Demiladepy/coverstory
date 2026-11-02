@@ -30,7 +30,6 @@ import { shapeForSpeech } from "@/game/shout";
 import {
   CAUGHT_AT,
   DEAD_AIR_GRACE_MS,
-  START_SUSPICION,
   deadAir,
   scoreExcuse,
   scoreTurn,
@@ -89,7 +88,7 @@ export function createEngine(opts: {
   let heldVoice: VoiceId = "dad";
   let turnsSurvived = 0;
   let lines = 0;
-  let suspicion = START_SUSPICION;
+  let suspicion = level.startSuspicion;
   let over = false;
 
   /** who the visitor last asked for, and what they last said */
@@ -119,8 +118,14 @@ export function createEngine(opts: {
     opts.onEvent(event);
   };
 
-  const fail = (code: ErrorCode, message: string) =>
-    emit({ type: "error", code, message, recoverable: code !== "mic_denied", at: at() });
+  /**
+   * Recoverable means the encounter can carry on. A failed line or a lost
+   * socket is survivable; no microphone, no token and no opening line are not,
+   * and pretending otherwise leaves the player staring at a screen that will
+   * never change.
+   */
+  const fail = (code: ErrorCode, message: string, recoverable = true) =>
+    emit({ type: "error", code, message, recoverable, at: at() });
 
   async function play(text: string, voiceId: string) {
     const id = `l${lines++}`;
@@ -398,7 +403,7 @@ export function createEngine(opts: {
         ctx = new AudioContext({ sampleRate: 24000 });
         void ctx.resume();
       } catch (err) {
-        fail("unknown", err instanceof Error ? err.message : "no audio");
+        fail("unknown", err instanceof Error ? err.message : "no audio", false);
         return;
       }
 
@@ -420,14 +425,18 @@ export function createEngine(opts: {
         try {
           mic = await startMic((frame) => stt?.send(frame.pcm));
         } catch {
-          fail("mic_denied", "Cover Story needs the microphone — it is the whole game.");
+          fail("mic_denied", "Cover Story needs the microphone — it is the whole game.", false);
           throw new Error("no mic");
         }
 
         const res = await fetch("/api/token", { method: "POST" });
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-          fail(body.error === "budget" ? "budget" : "unknown", body.message ?? "could not start");
+          fail(
+            body.error === "budget" ? "budget" : "unknown",
+            body.message ?? "could not start",
+            false,
+          );
           throw new Error("no tokens");
         }
         const tokens = (await res.json()) as { stt: string; tts: string };
@@ -479,7 +488,7 @@ export function createEngine(opts: {
         });
         if (!stopped) ready();
       } catch (err) {
-        fail("unknown", err instanceof Error ? err.message : "the door would not open");
+        fail("unknown", err instanceof Error ? err.message : "the door would not open", false);
       }
     },
 
