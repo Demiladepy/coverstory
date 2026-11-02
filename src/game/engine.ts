@@ -32,18 +32,25 @@ import {
   DEAD_AIR_GRACE_MS,
   START_SUSPICION,
   deadAir,
+  scoreExcuse,
   scoreTurn,
   type Scored,
   type TurnFacts,
 } from "@/game/score";
-import type { Claim, GameEvent, LevelId, Speaker, VoiceId } from "@/lib/events";
+import { EXCUSE_SLOTS, PREP_SECONDS } from "@/lib/events";
+import type { Claim, Excuse, GameEvent, LevelId, Speaker, VoiceId } from "@/lib/events";
 
 export type Engine = {
+  /** asks for the microphone, then opens the prep phase */
   start: () => Promise<void>;
+  /** prep is over; the door knocks */
+  submitPrep: (excuses: Excuse[]) => Promise<void>;
   /** a voice key went down */
   hold: (voice: VoiceId) => void;
   /** the voice key came up */
   release: () => void;
+  /** an excuse hotkey was tapped */
+  fire: (slot: number) => void;
   stop: () => void;
 };
 
@@ -93,6 +100,12 @@ export function createEngine(opts: {
   const history: { speaker: Speaker; text: string }[] = [];
   /** everything an adult has claimed out loud — what contradiction is judged against */
   const claims: Claim[] = [];
+
+  /** the three prepared lines, and which of them have been spent */
+  let excuses: Excuse[] = [];
+  const spent = new Set<number>();
+  /** tokens and sockets, opened behind the prep screen */
+  let setup: Promise<void> | null = null;
 
   const emit = (event: GameEvent) => {
     if (!stopped) opts.onEvent(event);
@@ -288,14 +301,31 @@ export function createEngine(opts: {
 
     // The model writes while the grown-up talks, so by the time the house is
     // quiet the visitor already knows their line and the meter can move.
+    await afterPlayerLine(playerAudio, (contradiction) =>
+      scoreTurn({ ...facts, contradiction }),
+    );
+  }
+
+  /**
+   * What happens after the house has spoken, however it spoke.
+   *
+   * Live answer or prepared line, the shape is the same: ask the model while
+   * the grown-up is still talking, move the meter once the judgement is back,
+   * and only then let the visitor reply. The score function is passed in
+   * because that is the only part the two paths disagree about.
+   */
+  async function afterPlayerLine(
+    audio: SpokenLine,
+    score: (contradiction: Line["contradiction"]) => Scored,
+  ) {
     const next = writeNextLine();
-    await waitOutAudio(playerAudio);
+    await waitOutAudio(audio);
     if (stopped) return;
 
     const line = await next;
     if (stopped) return;
 
-    if (applyScore(scoreTurn({ ...facts, contradiction: line.contradiction }))) return;
+    if (applyScore(score(line.contradiction))) return;
 
     if (turnsSurvived >= level.turnsToWin) {
       over = true;
@@ -315,21 +345,84 @@ export function createEngine(opts: {
     if (!stopped) ready();
   }
 
+  /** A prepared line, fired from a hotkey. No mic, no hesitation, no waiting. */
+  async function speakExcuse(slot: number, excuse: Excuse) {
+    const reused = spent.has(slot);
+    spent.add(slot);
+
+    let audio: SpokenLine;
+    try {
+      const played = await play(excuse.text, GROWNUP_BY_ID[excuse.voice].voiceId);
+      audio = played.spoken;
+      emit({
+        type: "player_line",
+        id: played.id,
+        text: excuse.text,
+        spokenText: excuse.text,
+        voice: excuse.voice,
+        timings: played.spoken.timings,
+        durationMs: played.spoken.durationMs,
+        fromExcuseSlot: slot,
+        at: at(),
+      });
+    } catch {
+      fail("tts_failed", "the house went quiet — that line never made it out");
+      ready();
+      return;
+    }
+
+    history.push({ speaker: excuse.voice, text: excuse.text });
+    claims.push({ voice: excuse.voice, text: excuse.text, level: level.id, at: at() });
+    turnsSurvived += 1;
+
+    const priorClaims = claims.length - 1;
+    await afterPlayerLine(audio, (contradiction) =>
+      scoreExcuse({ voice: excuse.voice, askedFor, contradiction, priorClaims, reused }),
+    );
+  }
+
   return {
     async start() {
+      // The AudioContext has to be made inside the player's own click, before
+      // anything is awaited, or the browser will not let it make sound.
       try {
+        ctx = new AudioContext({ sampleRate: 24000 });
+        void ctx.resume();
+      } catch (err) {
+        fail("unknown", err instanceof Error ? err.message : "no audio");
+        return;
+      }
+
+      emit({
+        type: "prep_start",
+        level: level.id,
+        slots: EXCUSE_SLOTS,
+        secondsAllowed: PREP_SECONDS,
+        at: at(),
+      });
+
+      // Everything else opens behind the prep screen. The microphone prompt,
+      // a token, the transcript socket and waking the model together cost
+      // several seconds that the player now spends writing rather than
+      // watching a spinner — and the permission prompt lands over a page that
+      // explains itself rather than over a blank one. The click's activation
+      // still covers the microphone request, because it is made immediately.
+      setup = (async () => {
+        try {
+          mic = await startMic((frame) => stt?.send(frame.pcm));
+        } catch {
+          fail("mic_denied", "Cover Story needs the microphone — it is the whole game.");
+          throw new Error("no mic");
+        }
+
         const res = await fetch("/api/token", { method: "POST" });
         if (!res.ok) {
           const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
           fail(body.error === "budget" ? "budget" : "unknown", body.message ?? "could not start");
-          return;
+          throw new Error("no tokens");
         }
         const tokens = (await res.json()) as { stt: string; tts: string };
         ttsToken = tokens.tts;
-
-        // Made inside the player's click, or the browser won't let it sound.
-        ctx = new AudioContext({ sampleRate: 24000 });
-        await ctx.resume();
 
         stt = await openStt({
           token: tokens.stt,
@@ -339,30 +432,37 @@ export function createEngine(opts: {
           onError: (message) => fail("stt_lost", message),
         });
 
-        try {
-          mic = await startMic((frame) => stt?.send(frame.pcm));
-        } catch {
-          fail("mic_denied", "Cover Story needs the microphone — it is the whole game.");
-          return;
-        }
-
-        // Wakes the model while the opener plays, so the player's first answer
-        // is not the one that pays for the cold start.
         void fetch("/api/visitor", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ level: level.id, history: [], warm: true }),
         }).catch(() => {});
+      })();
 
-        emit({
-          type: "level_start",
-          level: level.id,
-          brief: level.brief,
-          visitorName: level.visitorName,
-          want: level.want,
-          at: at(),
-        });
+      setup.catch(() => {});
+    },
 
+    async submitPrep(written) {
+      excuses = written;
+      emit({ type: "prep_end", level: level.id, excuses, at: at() });
+
+      try {
+        await setup;
+      } catch {
+        return; // the failure already went out as an error event
+      }
+      if (stopped) return;
+
+      emit({
+        type: "level_start",
+        level: level.id,
+        brief: level.brief,
+        visitorName: level.visitorName,
+        want: level.want,
+        at: at(),
+      });
+
+      try {
         await visitorSays({
           text: level.opener,
           addressedTo: level.expects,
@@ -370,7 +470,7 @@ export function createEngine(opts: {
         });
         if (!stopped) ready();
       } catch (err) {
-        fail("unknown", err instanceof Error ? err.message : "could not start");
+        fail("unknown", err instanceof Error ? err.message : "the door would not open");
       }
     },
 
@@ -393,6 +493,15 @@ export function createEngine(opts: {
       mic?.close();
       stt?.forceEndpoint();
       emit({ type: "mic_state", state: "finalising", at: at() });
+    },
+
+    fire(slot) {
+      if (stopped || over || holding || awaiting || !canSpeak) return;
+      const excuse = excuses[slot];
+      if (!excuse || !excuse.text.trim()) return;
+      canSpeak = false;
+      clearDeadAir();
+      void speakExcuse(slot, excuse);
     },
 
     stop() {

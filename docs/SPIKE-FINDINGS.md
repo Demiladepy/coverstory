@@ -246,3 +246,42 @@ Two rules fell out of writing the tests rather than out of the design:
   bonus at first, so a 1.4 s stall mid-sentence scored exactly zero. Stalling
   and dodging look the same from the doorstep, so it scores as evasion and says
   so.
+
+## What a prepared line is worth
+
+A line written in the prep phase is scored on a different scale, because there
+is nothing to hear. No fillers, no pauses, no loudness — the player did not
+speak. That is the trade: a canned line is perfectly fluent and instant, so it
+cannot give you away the way your own voice can.
+
+What it can do is fail to fit, because it was written before the question was
+asked.
+
+| firing an excuse | points |
+| --- | --- |
+| fits the question, first use | **−10** |
+| nobody in particular was asked | **−10** |
+| they had asked for Mom, Dad's line fired | +18 |
+| the visitor has heard that line already | +12 |
+| it clashes with something on the record | +26 |
+| all three at once | +56 |
+
+The voice is chosen when the line is written, not when it is fired. Deciding
+*who* says a thing is most of the work of preparing an excuse, and doing it in
+advance is the whole advantage prep buys — at the door it is one key.
+
+### Two things the error path taught us
+
+Driving the game with the microphone blocked, which is the one state that is
+easy to reach by accident, showed up two bugs that no amount of typechecking
+would have:
+
+- **A denied microphone rendered as losing.** `result` was null and the
+  game-over panel read "they stopped believing you", blaming the player for
+  something the browser did. A run that cannot start now has its own screen.
+- **The permission prompt was gating the prep screen.** Asking for the
+  microphone before prep meant the prompt landed over a blank page. It now
+  opens behind the prep screen, along with the token, the socket and the model
+  warm-up — several seconds the player spends writing instead of watching a
+  spinner. The click's activation still covers the request, because it is made
+  immediately rather than when prep ends.

@@ -232,3 +232,63 @@ label.pick {
 .tick.up b { color: var(--alarm); }
 .tick.down { border-color: rgba(95, 184, 122, 0.4); }
 .tick.down b { color: var(--good); }
+
+/* ---- prep: three lines on three keys ---------------------------------- */
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.slot .key {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-faint);
+  width: 16px;
+  flex: none;
+}
+
+.slot .line {
+  flex: 1;
+  min-width: 0;
+  padding: 9px 11px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+}
+
+.slot .line:focus { outline: none; border-color: var(--warm-deep); }
+.slot .line::placeholder { color: var(--ink-faint); }
+
+.pill { padding: 6px 10px; font-size: 12px; }
+
+/* The rail sits under the voice keys during play: what is parked on 7, 8, 9
+   and which of them the visitor has already heard. */
+.rail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.excuse {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 12px;
+  font-size: 13px;
+}
+
+.excuse .key { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+.excuse .line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.excuse .faint { font-size: 11px; }
+
+/* Spent, not gone. A used line can still be fired — it just costs. */
+.excuse.spent .line { text-decoration: line-through; color: var(--ink-faint); }

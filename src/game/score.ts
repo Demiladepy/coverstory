@@ -172,6 +172,47 @@ export function scoreTurn(facts: TurnFacts): Scored {
   return { delta: reasons.reduce((sum, r) => sum + r.points, 0), reasons };
 }
 
+export type ExcuseFacts = {
+  /** the voice the line was written for */
+  voice: VoiceId;
+  askedFor: VoiceId | null;
+  contradiction: { found: boolean; detail?: string } | null;
+  priorClaims: number;
+  /** this slot has already been spent in this encounter */
+  reused: boolean;
+};
+
+/**
+ * A prepared line is scored differently, because there is nothing to hear.
+ *
+ * None of the live signals exist: no fillers, no pauses, no loudness, because
+ * the player did not speak. That is exactly the trade the prep phase offers —
+ * a canned line is perfectly fluent and arrives instantly, so it cannot give
+ * you away the way your own voice can.
+ *
+ * What it can do is fail to fit. It was written before the question was asked,
+ * so it can be the wrong voice, it can contradict what the house already said,
+ * and — the one failure unique to it — it can be a line the visitor has already
+ * heard. Saying the same sentence twice is the most obvious tell there is.
+ */
+export function scoreExcuse(facts: ExcuseFacts): Scored {
+  const reasons: ScoredReason[] = [];
+  const add = (reason: SuspicionReason, detail?: string) =>
+    reasons.push({ reason, points: POINTS[reason], detail });
+
+  if (facts.askedFor && facts.askedFor !== facts.voice) {
+    add("wrong_voice", `they were asking for ${facts.askedFor}`);
+  }
+  if (facts.contradiction?.found) add("contradiction", facts.contradiction.detail);
+  if (facts.reused) add("excuse_misfired", "they have heard that one already");
+
+  if (!reasons.some((r) => r.points > 0)) {
+    add("excuse_landed", "ready before they finished asking");
+  }
+
+  return { delta: reasons.reduce((sum, r) => sum + r.points, 0), reasons };
+}
+
 export function deadAir(): Scored {
   return {
     delta: DEAD_AIR_POINTS,

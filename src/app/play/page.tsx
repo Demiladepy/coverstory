@@ -20,9 +20,31 @@ import { createEngine, type Engine } from "@/game/engine";
 import { LEVELS } from "@/game/levels";
 import { GROWNUPS } from "@/game/voices";
 import { REASON_LABEL, START_SUSPICION, type ScoredReason } from "@/game/score";
-import { VOICE_KEYS, VOICE_LABEL, type GameEvent, type LevelId, type VoiceId } from "@/lib/events";
+import {
+  EXCUSE_KEYS,
+  PREP_SECONDS,
+  VOICE_KEYS,
+  VOICE_LABEL,
+  type Excuse,
+  type GameEvent,
+  type LevelId,
+  type VoiceId,
+} from "@/lib/events";
 
-type Phase = "ready" | "opening" | "playing" | "over";
+type Phase = "ready" | "prep" | "opening" | "playing" | "over" | "failed";
+
+const BLANK: Excuse[] = [
+  { text: "", voice: "dad" },
+  { text: "", voice: "mom" },
+  { text: "", voice: "uncle" },
+];
+
+/** Not instructions — the shape of a line that works, so the blank page isn't one. */
+const HINTS = [
+  "He's in the shower, can you come back?",
+  "I'm on a call, just leave it by the step.",
+  "They're not here, I'm watching the place.",
+];
 
 export default function Play() {
   const [levelId, setLevelId] = useState<LevelId>("pizza");
@@ -41,8 +63,15 @@ export default function Play() {
   const [result, setResult] = useState<"won" | "caught" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [held, setHeld] = useState<VoiceId | null>(null);
+  const [drafts, setDrafts] = useState<Excuse[]>(BLANK);
+  const [prepLeft, setPrepLeft] = useState(PREP_SECONDS);
+  const [spent, setSpent] = useState<number[]>([]);
 
   const engine = useRef<Engine | null>(null);
+  // The countdown fires submit on a timer, so it needs the latest drafts
+  // without re-arming the timer on every keystroke.
+  const draftsRef = useRef(drafts);
+  draftsRef.current = drafts;
 
   const onEvent = useCallback((event: GameEvent) => {
     switch (event.type) {
@@ -55,12 +84,19 @@ export default function Play() {
         setVisitorLine(event.text);
         setAddressedTo(event.addressedTo);
         break;
-      case "player_line":
+      case "prep_start":
+        setPhase("prep");
+        setPrepLeft(event.secondsAllowed);
+        break;
+      case "player_line": {
         setHeardText(event.text);
         setSpokenText(event.spokenText);
         setLastVoice(event.voice);
         setPartial("");
+        const slot = event.fromExcuseSlot;
+        if (slot !== null) setSpent((s) => (s.includes(slot) ? s : [...s, slot]));
         break;
+      }
       case "suspicion":
         setSuspicion(event.value);
         setReasons(event.reasons);
@@ -75,7 +111,10 @@ export default function Play() {
         break;
       case "error":
         setError(event.message);
-        if (!event.recoverable) setPhase("over");
+        // A run that cannot continue is not a loss. Showing "they stopped
+        // believing you" because the microphone was refused blames the player
+        // for something the browser did.
+        if (!event.recoverable) setPhase("failed");
         break;
     }
   }, []);
@@ -100,7 +139,28 @@ export default function Play() {
     setHeld(null);
     setSuspicion(START_SUSPICION);
     setReasons([]);
+    setDrafts(BLANK);
+    setPrepLeft(PREP_SECONDS);
+    setSpent([]);
   }, []);
+
+  const submitPrep = useCallback(async () => {
+    setPhase("opening");
+    await engine.current?.submitPrep(draftsRef.current);
+  }, []);
+
+  // Prep runs on a clock. Running out is not a punishment — whatever is written
+  // is kept — it is there so the player writes what comes to mind rather than
+  // drafting, which is the difference between an excuse and an essay.
+  useEffect(() => {
+    if (phase !== "prep") return;
+    if (prepLeft <= 0) {
+      void submitPrep();
+      return;
+    }
+    const tick = setTimeout(() => setPrepLeft((n) => n - 1), 1000);
+    return () => clearTimeout(tick);
+  }, [phase, prepLeft, submitPrep]);
 
   useEffect(() => () => engine.current?.stop(), []);
 
@@ -110,6 +170,13 @@ export default function Play() {
     if (phase !== "playing") return;
 
     const down = (e: KeyboardEvent) => {
+      const slot = EXCUSE_KEYS.indexOf(e.key as (typeof EXCUSE_KEYS)[number]);
+      if (slot >= 0 && !e.repeat && !held) {
+        e.preventDefault();
+        engine.current?.fire(slot);
+        return;
+      }
+
       const voice = VOICE_KEYS[e.key];
       if (!voice || e.repeat || held) return;
       e.preventDefault();
@@ -178,8 +245,63 @@ export default function Play() {
             of the house in their voice. Let go when you&rsquo;re done talking.
           </p>
           <button className="primary" onClick={() => void begin()}>
-            Answer the door
+            Get your story straight
           </button>
+        </div>
+      )}
+
+      {phase === "prep" && (
+        <div className="panel">
+          <div className="row" style={{ justifyContent: "space-between", marginBottom: 6 }}>
+            <h2 style={{ margin: 0 }}>Before they knock</h2>
+            <span className={`mono ${prepLeft <= 10 ? "bad" : "faint"}`}>{prepLeft}s</span>
+          </div>
+          <p className="dim" style={{ margin: "0 0 16px", lineHeight: 1.6, maxWidth: "58ch" }}>
+            Write three lines you can fire without thinking, and pick who says each one.
+            They come out instantly and perfectly — no stammering, no pause. But they were
+            written before you knew the question, so a line that doesn&rsquo;t fit will cost
+            you, and saying the same one twice costs more.
+          </p>
+
+          {drafts.map((draft, i) => (
+            <div key={EXCUSE_KEYS[i]} className="slot">
+              <span className="key">{EXCUSE_KEYS[i]}</span>
+              <input
+                className="line"
+                value={draft.text}
+                placeholder={HINTS[i]}
+                maxLength={120}
+                autoFocus={i === 0}
+                onChange={(e) =>
+                  setDrafts((d) =>
+                    d.map((x, j) => (j === i ? { ...x, text: e.target.value } : x)),
+                  )
+                }
+              />
+              <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+                {GROWNUPS.map((g) => (
+                  <button
+                    key={g.id}
+                    className={`pill ${draft.voice === g.id ? "on" : ""}`}
+                    onClick={() =>
+                      setDrafts((d) => d.map((x, j) => (j === i ? { ...x, voice: g.id } : x)))
+                    }
+                  >
+                    {g.label}
+                  </button>
+                ))}
+              </span>
+            </div>
+          ))}
+
+          <div className="row" style={{ marginTop: 16 }}>
+            <button className="primary" onClick={() => void submitPrep()}>
+              Ready &mdash; let them knock
+            </button>
+            <span className="faint" style={{ fontSize: 12 }}>
+              Blank slots are fine. You can always just talk.
+            </span>
+          </div>
         </div>
       )}
 
@@ -187,8 +309,21 @@ export default function Play() {
         <div className="panel">
           <h2>Opening</h2>
           <p className="dim" style={{ margin: 0 }}>
-            Letting the microphone in and warming up the voices&hellip;
+            Someone is coming up the path&hellip;
           </p>
+        </div>
+      )}
+
+      {phase === "failed" && (
+        <div className="panel">
+          <h2>That one is not on you</h2>
+          <p className="dim" style={{ margin: "0 0 14px", lineHeight: 1.6, maxWidth: "52ch" }}>
+            The run stopped before it started. Allow the microphone for this page and go
+            again — the whole game is your voice, so there is no playing around it.
+          </p>
+          <button className="primary" onClick={stop}>
+            Try again
+          </button>
         </div>
       )}
 
@@ -268,6 +403,26 @@ export default function Play() {
             ))}
           </div>
 
+          {drafts.some((d) => d.text.trim()) && (
+            <div className="rail">
+              {drafts.map((draft, i) =>
+                draft.text.trim() ? (
+                  <button
+                    key={EXCUSE_KEYS[i]}
+                    className={`excuse ${spent.includes(i) ? "spent" : ""}`}
+                    disabled={phase !== "playing"}
+                    onClick={() => engine.current?.fire(i)}
+                    title={spent.includes(i) ? "They have heard this one" : undefined}
+                  >
+                    <span className="key">{EXCUSE_KEYS[i]}</span>
+                    <span className="line">{draft.text}</span>
+                    <span className="faint">{VOICE_LABEL[draft.voice]}</span>
+                  </button>
+                ) : null,
+              )}
+            </div>
+          )}
+
           {spokenText && (
             <div className="panel">
               <h2>What the house said</h2>
@@ -287,7 +442,7 @@ export default function Play() {
             </div>
           )}
 
-          {phase === "over" && (
+          {phase === "over" && result && (
             <div className="panel">
               <h2>{result === "won" ? "They left" : "They stopped believing you"}</h2>
               <p className="dim" style={{ margin: "0 0 14px", lineHeight: 1.6, maxWidth: "52ch" }}>

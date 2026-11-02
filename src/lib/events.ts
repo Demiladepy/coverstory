@@ -35,6 +35,17 @@ export type LevelId = "pizza" | "neighbour" | "school" | "boss";
 
 export type LevelResult = "won" | "caught";
 
+/**
+ * One line written during prep and parked on a hotkey.
+ *
+ * The voice is chosen when the line is written, not when it is fired. Deciding
+ * *who* says a thing is most of the work of preparing an excuse, and doing it
+ * in advance is the whole advantage the prep phase buys: at the door the player
+ * presses one key and a complete, fluent answer comes out in the right voice,
+ * with none of the hesitation a live reply carries.
+ */
+export type Excuse = { text: string; voice: VoiceId };
+
 /** A thing an adult has claimed out loud. The visitor brain remembers these. */
 export type Claim = {
   /** who said it */
@@ -70,8 +81,8 @@ export type GameEvent =
   | {
       type: "prep_end";
       level: LevelId;
-      /** index 0..2 maps to keys 7, 8, 9; empty string means left blank */
-      excuses: string[];
+      /** index 0..2 maps to keys 7, 8, 9; blank text means the slot is unused */
+      excuses: Excuse[];
       at: number;
     }
   /** The visitor speaks. Audio is already playing when this lands. */
@@ -155,6 +166,9 @@ export type RunLog = {
 export const MAX_SUSPICION = 100;
 export const VOICE_KEYS: Record<string, VoiceId> = { "1": "dad", "2": "mom", "3": "uncle" };
 export const EXCUSE_KEYS = ["7", "8", "9"] as const;
+export const EXCUSE_SLOTS = 3;
+/** Long enough to think of three lines, short enough that you don't draft them. */
+export const PREP_SECONDS = 45;
 
 export const VOICE_LABEL: Record<VoiceId, string> = {
   dad: "Dad",
