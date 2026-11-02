@@ -9,15 +9,15 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "next": "15.5.4",
+    "next": "^15.5.28",
     "react": "19.1.1",
-    "react-dom": "19.1.1",
-    "zod": "3.25.76"
+    "react-dom": "19.1.1"
   },
   "devDependencies": {
     "@types/node": "22.15.3",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
+    "eslint-config-next": "^15.5.28",
     "typescript": "5.8.3"
   }
 }
