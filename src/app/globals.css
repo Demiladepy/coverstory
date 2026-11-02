@@ -292,3 +292,44 @@ label.pick {
 
 /* Spent, not gone. A used line can still be fired — it just costs. */
 .excuse.spent .line { text-decoration: line-through; color: var(--ink-faint); }
+
+/* ---- the tape --------------------------------------------------------- */
+
+.tape { display: flex; flex-direction: column; gap: 10px; }
+
+.beat {
+  padding: 10px 13px;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  background: var(--panel-2);
+  max-width: 46ch;
+  /* Dim until it is the line being spoken, so the eye follows the audio. */
+  opacity: 0.55;
+  transition: opacity 160ms ease, border-color 160ms ease;
+}
+
+.beat.live { opacity: 1; border-color: var(--line); }
+
+/* The visitor is outside; the house answers from the other side. */
+.beat.them { align-self: flex-start; }
+.beat.us { align-self: flex-end; background: var(--panel); border-color: var(--line); }
+
+.beat .who {
+  display: block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--ink-faint);
+  margin-bottom: 5px;
+}
+
+.beat .who em { font-style: normal; color: var(--warm-deep); }
+.beat .words { margin: 0; font-size: 15px; line-height: 1.5; }
+
+/* The word being said right now. This is what the word boundaries were for. */
+.beat .words .lit {
+  color: var(--warm);
+  background: rgba(232, 176, 75, 0.1);
+  border-radius: 3px;
+}

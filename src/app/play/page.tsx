@@ -28,8 +28,10 @@ import {
   type Excuse,
   type GameEvent,
   type LevelId,
+  type RunLog,
   type VoiceId,
 } from "@/lib/events";
+import Replay from "./Replay";
 
 type Phase = "ready" | "prep" | "opening" | "playing" | "over" | "failed";
 
@@ -66,6 +68,7 @@ export default function Play() {
   const [drafts, setDrafts] = useState<Excuse[]>(BLANK);
   const [prepLeft, setPrepLeft] = useState(PREP_SECONDS);
   const [spent, setSpent] = useState<number[]>([]);
+  const [recording, setRecording] = useState<RunLog | null>(null);
 
   const engine = useRef<Engine | null>(null);
   // The countdown fires submit on a timer, so it needs the latest drafts
@@ -108,6 +111,9 @@ export default function Play() {
       case "level_end":
         setResult(event.result);
         setPhase("over");
+        // Grabbed here rather than on teardown: the engine still holds every
+        // clip it played, and stopping it is what throws them away.
+        setRecording(engine.current?.recording() ?? null);
         break;
       case "error":
         setError(event.message);
@@ -142,6 +148,7 @@ export default function Play() {
     setDrafts(BLANK);
     setPrepLeft(PREP_SECONDS);
     setSpent([]);
+    setRecording(null);
   }, []);
 
   const submitPrep = useCallback(async () => {
@@ -440,6 +447,10 @@ export default function Play() {
                 </p>
               )}
             </div>
+          )}
+
+          {phase === "over" && result && recording && (
+            <Replay log={recording} level={level} result={result} suspicion={suspicion} />
           )}
 
           {phase === "over" && result && (

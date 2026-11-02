@@ -155,12 +155,20 @@ export type GameEvent =
 
 export type GameEventType = GameEvent["type"];
 
-/** The replay is just the event log plus the audio blobs, keyed by line id. */
+/** One spoken line's audio, exactly as it was played. */
+export type Clip = { pcm: Int16Array; sampleRate: number };
+
+/**
+ * The replay is the event log plus the audio, keyed by line id.
+ *
+ * The audio is kept as raw samples rather than blobs so the whole encounter can
+ * be stitched into one file at the end without asking the service for any of it
+ * again — the player hears exactly what they heard the first time.
+ */
 export type RunLog = {
   startedAt: number;
   events: GameEvent[];
-  /** line id -> object URL of its audio */
-  audio: Record<string, string>;
+  clips: Map<string, Clip>;
 };
 
 export const MAX_SUSPICION = 100;

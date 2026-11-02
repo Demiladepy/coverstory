@@ -285,3 +285,28 @@ would have:
   warm-up — several seconds the player spends writing instead of watching a
   spinner. The click's activation still covers the request, because it is made
   immediately rather than when prep ends.
+
+## The tape
+
+The replay needs nothing from the service. Every line's raw PCM is kept as it
+plays, so the encounter is stitched back together locally and the player hears
+exactly what they heard the first time.
+
+Checked end to end without a microphone, by synthesising two lines and running
+them through the real share path:
+
+| | |
+| --- | --- |
+| visitor line | 5.44 s, 15 word timings |
+| house line | 3.76 s, 12 word timings |
+| stitched, with a 420 ms breath between | 9.62 s, 230880 samples — exact |
+| WAV out | 461804 bytes, `RIFF`/`WAVE`, 24 kHz mono 16-bit |
+| declared data bytes vs actual | 461760 / 461760 |
+
+The gap between lines is not cosmetic. Played back to back the conversation
+sounds like one person talking over themselves, and the joke is that it is two
+people who are not there.
+
+Clip length is taken from the samples rather than from the service's reported
+`audio_duration_ms`, because the captions have to line up with what the ear
+hears and the samples are the thing the ear gets.

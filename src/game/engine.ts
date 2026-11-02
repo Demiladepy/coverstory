@@ -38,7 +38,7 @@ import {
   type TurnFacts,
 } from "@/game/score";
 import { EXCUSE_SLOTS, PREP_SECONDS } from "@/lib/events";
-import type { Claim, Excuse, GameEvent, LevelId, Speaker, VoiceId } from "@/lib/events";
+import type { Claim, Clip, Excuse, GameEvent, LevelId, RunLog, Speaker, VoiceId } from "@/lib/events";
 
 export type Engine = {
   /** asks for the microphone, then opens the prep phase */
@@ -51,6 +51,8 @@ export type Engine = {
   release: () => void;
   /** an excuse hotkey was tapped */
   fire: (slot: number) => void;
+  /** everything that happened, and everything that was said, for the replay */
+  recording: () => RunLog;
   stop: () => void;
 };
 
@@ -107,8 +109,14 @@ export function createEngine(opts: {
   /** tokens and sockets, opened behind the prep screen */
   let setup: Promise<void> | null = null;
 
+  /** the run as it happened, kept so the end of it can be played back */
+  const journal: GameEvent[] = [];
+  const clips = new Map<string, Clip>();
+
   const emit = (event: GameEvent) => {
-    if (!stopped) opts.onEvent(event);
+    if (stopped) return;
+    journal.push(event);
+    opts.onEvent(event);
   };
 
   const fail = (code: ErrorCode, message: string) =>
@@ -117,6 +125,7 @@ export function createEngine(opts: {
   async function play(text: string, voiceId: string) {
     const id = `l${lines++}`;
     const spoken = await speakLine({ ctx: ctx!, token: ttsToken, text, voiceId });
+    clips.set(id, { pcm: spoken.pcm, sampleRate: spoken.sampleRate });
     return { id, spoken };
   }
 
@@ -503,6 +512,8 @@ export function createEngine(opts: {
       clearDeadAir();
       void speakExcuse(slot, excuse);
     },
+
+    recording: () => ({ startedAt: runStart, events: [...journal], clips }),
 
     stop() {
       stopped = true;
