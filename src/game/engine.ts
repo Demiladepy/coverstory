@@ -322,6 +322,8 @@ export function createEngine(opts: {
         voice,
         timings: played.spoken.timings,
         durationMs: played.spoken.durationMs,
+        shouted: shaped.shouted,
+        playbackOffsetMs: Math.max(0, (ctx!.currentTime - played.spoken.startedAt) * 1000),
         fromExcuseSlot: null,
         at: at(),
       });
@@ -414,6 +416,8 @@ export function createEngine(opts: {
         voice: excuse.voice,
         timings: played.spoken.timings,
         durationMs: played.spoken.durationMs,
+        shouted: [],
+        playbackOffsetMs: Math.max(0, (ctx!.currentTime - played.spoken.startedAt) * 1000),
         fromExcuseSlot: slot,
         at: at(),
       });

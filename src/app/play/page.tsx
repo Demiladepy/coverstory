@@ -43,6 +43,14 @@ import Replay from "./Replay";
 
 type Speech = { timings: WordTiming[]; durationMs: number; anchor: number };
 
+/** The house's own line, plus which of its words the player shouted. */
+type HouseSpeech = Speech & { shouted: Set<string> };
+
+/** Words come back from the voice with punctuation attached; this is for comparing them. */
+function bare(word: string): string {
+  return word.replace(/[^\p{L}\p{N}']/gu, "").toLowerCase();
+}
+
 type Phase = "ready" | "prep" | "opening" | "playing" | "over" | "failed";
 
 const BLANK: Excuse[] = [
@@ -73,7 +81,8 @@ export default function Play() {
   const [turnsDone, setTurnsDone] = useState(0);
   const [patience, setPatience] = useState<{ ms: number; anchor: number } | null>(null);
   const [quietFor, setQuietFor] = useState(0);
-  const [spokenText, setSpokenText] = useState("");
+  const [house, setHouse] = useState<HouseSpeech | null>(null);
+  const [intoHouse, setIntoHouse] = useState(-1);
   const [micState, setMicState] = useState<"idle" | "listening" | "finalising">("idle");
   const [partial, setPartial] = useState("");
   const [suspicion, setSuspicion] = useState(LEVELS[0].startSuspicion);
@@ -115,9 +124,14 @@ export default function Play() {
         });
         break;
       case "player_line": {
-        setSpokenText(event.spokenText);
         setPartial("");
         setTurnsDone((n) => n + 1);
+        setHouse({
+          timings: event.timings,
+          durationMs: event.durationMs,
+          anchor: performance.now() - event.playbackOffsetMs,
+          shouted: new Set(event.shouted.map(bare)),
+        });
         const slot = event.fromExcuseSlot;
         if (slot !== null) setSpent((s) => (s.includes(slot) ? s : [...s, slot]));
         break;
@@ -174,7 +188,6 @@ export default function Play() {
     engine.current = null;
     setPhase("ready");
     setVisitorLine("");
-    setSpokenText("");
     setPartial("");
     setResult(null);
     setHeld(null);
@@ -188,6 +201,8 @@ export default function Play() {
     setLoudness({ level: 0, baseline: 0.05 });
     setPatience(null);
     setQuietFor(0);
+    setHouse(null);
+    setIntoHouse(-1);
   }, [levelId]);
 
   // Remembered per browser, and harmless if storage is unavailable.
@@ -228,6 +243,25 @@ export default function Play() {
     frame = requestAnimationFrame(watch);
     return () => cancelAnimationFrame(frame);
   }, [patience]);
+
+  // The same trick as the visitor's line, pointed the other way: this is the
+  // player watching their own words leave the house in somebody else's voice,
+  // which is the whole joke and was rendered as a static paragraph.
+  useEffect(() => {
+    if (!house || house.timings.length === 0) return;
+    let frame = 0;
+    const follow = () => {
+      const into = performance.now() - house.anchor;
+      if (into > house.durationMs + 150) {
+        setIntoHouse(-1);
+        return;
+      }
+      setIntoHouse(into);
+      frame = requestAnimationFrame(follow);
+    };
+    frame = requestAnimationFrame(follow);
+    return () => cancelAnimationFrame(frame);
+  }, [house]);
 
   useEffect(() => () => engine.current?.stop(), []);
 
@@ -566,7 +600,26 @@ export default function Play() {
           ) : null}
         </div>
 
-        <p className="heard">{partial || spokenText || " "}</p>
+        <p className="heard">
+          {partial
+            ? partial
+            : house && house.timings.length > 0
+              ? house.timings.map((word, i) => {
+                  const state =
+                    intoHouse < 0 || intoHouse > word.end
+                      ? "said"
+                      : intoHouse >= word.start
+                        ? "lit"
+                        : "coming";
+                  const loud = house.shouted.has(bare(word.text));
+                  return (
+                    <span key={`${i}-${word.text}`} className={`hw ${state} ${loud ? "shout" : ""}`}>
+                      {word.text}{" "}
+                    </span>
+                  );
+                })
+              : null}
+        </p>
 
         <div className="ticks">
           {reasons.map((r, i) => (

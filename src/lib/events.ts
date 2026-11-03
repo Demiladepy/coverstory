@@ -117,6 +117,10 @@ export type GameEvent =
       voice: VoiceId;
       timings: WordTiming[];
       durationMs: number;
+      /** the words the player raised their voice on, as the shout shaper found them */
+      shouted: string[];
+      /** how far into the clip its audio already is when this event lands */
+      playbackOffsetMs: number;
       /** true when this line was fired from an excuse hotkey, not the mic */
       fromExcuseSlot: number | null;
       at: number;
