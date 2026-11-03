@@ -96,7 +96,12 @@ export async function POST(req: Request) {
   const level = LEVEL_BY_ID[body.level];
   if (!level) return NextResponse.json({ error: "unknown_level" }, { status: 400 });
 
-  const claims = (body.claims ?? []).slice(-8);
+  // A night makes sixteen claims across four doors, and the headline of the
+  // whole run is that the story you told the pizza driver still has to hold at
+  // Christmas. At eight, everything from the first two doors had fallen out of
+  // the window before the last one and that simply did not work. Twenty-four
+  // covers a full night with room to spare, and costs a few hundred tokens.
+  const claims = (body.claims ?? []).slice(-24);
 
   const [line, clash] = await Promise.all([
     writeLine(body, level, claims).catch(() => null),

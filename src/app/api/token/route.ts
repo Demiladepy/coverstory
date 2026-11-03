@@ -17,11 +17,11 @@ const WINDOW_MS = 60 * 60 * 1000;
 const runs = new Map<string, number[]>();
 
 function maxRunsPerHour(): number {
-  return Number(process.env.MAX_RUNS_PER_BROWSER_PER_HOUR ?? 3);
+  return Number(process.env.MAX_RUNS_PER_BROWSER_PER_HOUR ?? 5);
 }
 
 function maxRunSeconds(): number {
-  return Number(process.env.MAX_RUN_SECONDS ?? 1200);
+  return Number(process.env.MAX_RUN_SECONDS ?? 420);
 }
 
 function browserId(req: Request): string {
@@ -73,38 +73,83 @@ function spend(buckets: { key: string; limit: number }[]): { ok: boolean; remain
   return { ok: true, remaining };
 }
 
+/**
+ * Nights in progress, and how many times each has asked for fresh tokens.
+ *
+ * A night is four doors and each door opens its own transcript session, so one
+ * night needs several tokens. Charging a run for each of them would make the
+ * hourly cap mean a third of what it says. The first call starts a night and
+ * spends a run; the rest of that night's doors refill against the same id for
+ * free, up to a bound that no honest night comes near.
+ */
+const nights = new Map<string, { refills: number; startedAt: number }>();
+const REFILLS_PER_NIGHT = 10;
+
+function resume(run: string): boolean {
+  const night = nights.get(run);
+  if (!night) return false;
+  if (Date.now() - night.startedAt > WINDOW_MS) {
+    nights.delete(run);
+    return false;
+  }
+  if (night.refills >= REFILLS_PER_NIGHT) return false;
+  night.refills += 1;
+  return true;
+}
+
+function sweep() {
+  const now = Date.now();
+  for (const [id, night] of nights) {
+    if (now - night.startedAt > WINDOW_MS) nights.delete(id);
+  }
+}
+
 export async function POST(req: Request) {
   const id = browserId(req);
   const limit = maxRunsPerHour();
-  const budget = spend([
-    { key: `browser:${id}`, limit },
-    { key: `caller:${caller(req)}`, limit: limit * 5 },
-  ]);
 
-  if (!budget.ok) {
-    return NextResponse.json(
-      { error: "budget", message: "That's enough runs for one hour. Come back later." },
-      { status: 429 },
-    );
+  sweep();
+  const body = (await req.json().catch(() => ({}))) as { run?: string };
+  const resumed = typeof body.run === "string" && resume(body.run);
+  const run = resumed ? body.run! : crypto.randomUUID();
+
+  let remaining = limit - since(`browser:${id}`).length;
+  if (!resumed) {
+    const budget = spend([
+      { key: `browser:${id}`, limit },
+      { key: `caller:${caller(req)}`, limit: limit * 5 },
+    ]);
+
+    if (!budget.ok) {
+      return NextResponse.json(
+        { error: "budget", message: "That's enough runs for one hour. Come back later." },
+        { status: 429 },
+      );
+    }
+    remaining = budget.remaining;
+    nights.set(run, { refills: 0, startedAt: Date.now() });
   }
 
   try {
-    // The run is capped at both ends: the token's own session cap, and a
-    // client-side timer. A session that outlives the cap keeps billing.
+    // Each door's session is capped, and a door is the unit that can be
+    // abandoned: close the tab mid-encounter and the socket bills on until this
+    // cap, not until the end of a whole night. Streaming bills on how long the
+    // socket is open, idle or not, which the API docs call the commonest cause
+    // of a surprise invoice.
     const cap = maxRunSeconds();
     const [stt, tts] = await Promise.all([
       // Minted while the player is still writing excuses and not used until
-      // they are done, so a token has to outlive the prep phase. The session
-      // cap is what actually bounds a run.
+      // they are done, so a token has to outlive the prep phase.
       mintSttToken(300, Math.max(60, cap)),
       mintTtsToken(300, Math.max(60, cap)),
     ]);
 
     const res = NextResponse.json({
+      run,
       stt,
       tts,
       runSeconds: cap,
-      runsLeftThisHour: budget.remaining,
+      runsLeftThisHour: Math.max(0, remaining),
     });
     res.cookies.set("cs_bid", id, {
       httpOnly: true,

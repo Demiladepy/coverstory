@@ -89,6 +89,8 @@ export function createEngine(opts: {
   let stt: SttSession | null = null;
   let ttsToken = "";
   let sttToken = "";
+  /** the night this engine is playing, as the token route knows it */
+  let runId: string | null = null;
 
   let stopped = false;
   /** the house is quiet and the player may answer */
@@ -155,6 +157,36 @@ export function createEngine(opts: {
    */
   const fail = (code: ErrorCode, message: string, recoverable = true) =>
     emit({ type: "error", code, message, recoverable, at: at() });
+
+  /**
+   * Tokens for the door about to open.
+   *
+   * One night needs several, because each door gets its own transcript
+   * session — a session bills for as long as its socket is open whether or not
+   * anyone is talking, so holding one through four prep phases would bill
+   * three minutes of somebody typing. The run id is what stops those refills
+   * each counting as a fresh run against the hourly cap.
+   */
+  async function freshTokens() {
+    const res = await fetch("/api/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(runId ? { run: runId } : {}),
+    });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
+      fail(
+        body.error === "budget" ? "budget" : "unknown",
+        body.message ?? "could not start",
+        false,
+      );
+      throw new Error("no tokens");
+    }
+    const tokens = (await res.json()) as { run: string; stt: string; tts: string };
+    runId = tokens.run;
+    ttsToken = tokens.tts;
+    sttToken = tokens.stt;
+  }
 
   async function play(text: string, voiceId: string) {
     const id = `l${lines++}`;
@@ -247,6 +279,9 @@ export function createEngine(opts: {
     over = true;
     canSpeak = false;
     clearDeadAir();
+    // The door is shut, so stop listening at it. Nothing should be billing
+    // while the player reads the result or writes the next set of excuses.
+    closeEars();
 
     emit({
       type: "level_end",
@@ -260,7 +295,6 @@ export function createEngine(opts: {
     const lastDoor = levelIndex >= opts.levels.length - 1;
     if (result === "caught" || lastDoor) {
       runOver = true;
-      closeEars();
       emit({
         type: "run_end",
         result,
@@ -495,7 +529,16 @@ export function createEngine(opts: {
 
     history.push({ speaker: excuse.voice, text: excuse.text });
     claims.push({ voice: excuse.voice, text: excuse.text, level: level.id, at: at() });
-    turnsSurvived += 1;
+
+    // Deliberately does NOT advance turnsSurvived. A door needs as many answers
+    // as it needs, and the first one needed exactly as many as there are excuse
+    // slots — so three taps cleared the pizza driver without the player ever
+    // opening their mouth, in a game whose entire subject is the voice.
+    //
+    // A prepared line still does everything else: it keeps the silence off the
+    // meter, it scores, and it buys a moment to think. It just does not satisfy
+    // the person at the door, which is the honest reading of a line written
+    // before you knew the question.
 
     const priorClaims = claims.length - 1;
     await afterPlayerLine(audio, (contradiction) =>
@@ -543,19 +586,7 @@ export function createEngine(opts: {
           throw new Error("no mic");
         }
 
-        const res = await fetch("/api/token", { method: "POST" });
-        if (!res.ok) {
-          const body = (await res.json().catch(() => ({}))) as { error?: string; message?: string };
-          fail(
-            body.error === "budget" ? "budget" : "unknown",
-            body.message ?? "could not start",
-            false,
-          );
-          throw new Error("no tokens");
-        }
-        const tokens = (await res.json()) as { stt: string; tts: string };
-        ttsToken = tokens.tts;
-        sttToken = tokens.stt;
+        await freshTokens();
 
         void fetch("/api/visitor", {
           method: "POST",
@@ -578,10 +609,19 @@ export function createEngine(opts: {
       }
       if (stopped) return;
 
-      // The transcript socket opens at the first door rather than behind the
-      // prep screen, because a streaming session is capped and billed from the
-      // moment it opens, and prep would spend that budget watching somebody
-      // type. It then stays open for the rest of the night.
+      // A fresh session for this door, opened now rather than behind the prep
+      // screen: a streaming session bills from the moment its socket opens,
+      // and prep would spend that on watching somebody type. The first door
+      // already has its tokens from setup; every door after it needs its own,
+      // because the last one's expired with its session.
+      if (!stt && levelIndex > 0) {
+        try {
+          await freshTokens();
+        } catch {
+          return; // already reported
+        }
+      }
+
       try {
         if (!stt) stt = await openStt({
           token: sttToken,

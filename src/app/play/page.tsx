@@ -474,9 +474,9 @@ export default function Play() {
           </div>
           <p className="lede">
             Write three lines you can fire without thinking, and pick who says each. They come
-            out instantly and perfectly — no stammer, no pause. But they were written before you
-            knew the question, so a line that doesn&rsquo;t fit will cost you, and saying the
-            same one twice costs more.
+            out instantly and perfectly — no stammer, no pause. They buy you a moment, not an
+            answer: the visitor still wants one, and still has to hear it from you. A line that
+            doesn&rsquo;t fit will cost you, and saying the same one twice costs more.
           </p>
 
           {drafts.map((draft, i) => (
