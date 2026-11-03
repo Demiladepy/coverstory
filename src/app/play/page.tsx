@@ -21,7 +21,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Link from "next/link";
 import { createEngine, type Engine } from "@/game/engine";
 import { LEVELS, LEVEL_BY_ID } from "@/game/levels";
 import { GROWNUPS } from "@/game/voices";
@@ -393,9 +392,6 @@ export default function Play() {
             <button className="go" onClick={stop}>
               Another door
             </button>
-            <Link href="/spike">
-              <button className="quiet">Open the spike</button>
-            </Link>
           </div>
         </div>
       </main>
