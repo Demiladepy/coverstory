@@ -400,3 +400,70 @@ The session cap went to seven minutes, which comfortably covers the longest
 encounter, and the socket is terminated the moment a level ends rather than
 when the player finally leaves the end screen — billing runs on socket time,
 and the end screen is where someone sits and listens to the tape.
+
+## What auditing the rules found
+
+Typechecking and a green build say nothing about whether a game can be played
+badly. Reading the rules rather than the code turned up five faults, two of
+them things a player would have found in the first five minutes.
+
+**A door could be cleared without speaking.** Prepared lines counted toward
+the answers a visitor needed. The first door needs three. There are exactly
+three excuse slots. So writing three lines and tapping 7, 8, 9 beat the pizza
+driver at minus thirty on the meter, in a game whose entire subject is the
+voice. A prepared line now does everything except satisfy the person at the
+door — it keeps silence off the meter, it scores, it buys a moment — because a
+line written before you knew the question is not an answer.
+
+**The judge could not see the night it was judging.** Claims were trimmed to
+the last eight; a night makes sixteen. Everything the first two visitors were
+told had fallen out of the window before the last one arrived, which is
+exactly the thing a run exists for. Twenty-four now, for a few hundred tokens.
+
+**`/api/visitor` was unmetered and unbounded.** A public URL spending two model
+calls per request on our own key, with no session of any kind, and entry counts
+capped while their lengths were not — which bounds nothing. A 4.8 MB body went
+straight through. Now: four hundred lines an hour per address, every line
+trimmed, so that same body puts about 20 KB in front of the model. The hosting
+platform refuses the very large ones at the edge before they cost anything, so
+the two defences cover different sizes.
+
+**Prep could be handed in twice**, by pressing the button as the countdown hit
+zero, which opened the door twice — two openers over each other, a visitor in
+conversation with themselves.
+
+**Alt-tabbing mid-sentence hung the game.** A keyup goes to whichever window
+has focus, so this one never heard it: the key stayed down, the microphone kept
+streaming, and the screen sat saying DAD IS ANSWERING until the session cap
+killed the socket minutes later.
+
+### Two things the audit cleared rather than changed
+
+**An idle tab is not a leak.** Dead air climbs twelve at a time and catches the
+player in seven or eight silences — about ninety seconds — then ends the night.
+It terminates on its own, so it was left alone.
+
+**The first door is nearly unloseable, and should be.** A mediocre player
+finishes it around 52 of 100; only two catastrophic turns in three can lose it.
+Losing the first encounter in forty seconds is how somebody closes the tab.
+
+## What a night costs, and why the cap is what it is
+
+Streaming is billed on how long the socket stays open, idle or not — the API
+docs name unclosed sessions as the commonest cause of a surprise invoice. One
+session spanning a whole night therefore billed three minutes of somebody
+typing excuses, and an abandoned tab billed until the session cap.
+
+Each door now opens and closes its own session. A night's streaming drops from
+about nine minutes to about six, and an abandoned tab costs one door rather
+than one night, which let the cap drop from twenty minutes to seven.
+
+That required the hourly guard to stop counting tokens and start counting
+nights, since a night needs a token per door: the first door starts a run and
+spends from the cap, the rest refill free against the same run id. Measured —
+four doors, one run id, a fresh token each, and the cap moving by exactly one.
+
+With abandonment bounded to a single door, the cap can afford to be generous:
+**five nights per browser, twenty-five per address**. Five rather than three
+because somebody caught at the first door deserves another go, and the address
+cap is what actually stops a farm.
