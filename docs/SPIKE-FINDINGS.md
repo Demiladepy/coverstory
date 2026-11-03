@@ -310,3 +310,63 @@ people who are not there.
 Clip length is taken from the samples rather than from the service's reported
 `audio_duration_ms`, because the captions have to line up with what the ear
 hears and the samples are the thing the ear gets.
+
+## Correction: the judgement was never "5 out of 5"
+
+An earlier entry in this file reported the contradiction check passing five of
+five hand-written cases with no false positives. That number was one sample of
+a stochastic process — the call ran at temperature 0.9 — and re-running the
+same prompt against the same cases gave different answers. The claim was true
+of that run and not true in general, and the tuning done on the back of it was
+tuning against noise.
+
+`node scripts/judge-check.mjs` now runs nine cases and reports misses and false
+positives separately, because they are not equally bad: a missed contradiction
+costs the player nothing, a false one takes 26 points off them for something
+they did not do.
+
+## Why the judgement is its own call now
+
+Writing the visitor's line and judging the answer used to be one call, on the
+theory that they are the same thought. It reads well and it scored badly:
+
+| one call, in character | result |
+| --- | --- |
+| at temperature 0.9 | 6–7 of 9, **2 false positives** |
+| at temperature 0.25 | 6–7 of 9, **2 false positives** |
+
+The false positives were the same ones each time — a grown-up being vague
+about when someone would be back, or admitting they did not know where someone
+was, came back as a contradiction.
+
+The premise was wrong. A character whose whole job is to catch you out, asked
+in the same breath to judge impartially, will find something. The two jobs also
+want opposite settings: the character needs a high temperature or it repeats
+itself, the judgement needs a low one or it wanders.
+
+They are two calls now, fired together with `Promise.all` so the round trip is
+unchanged. The line keeps the persona and the heat. The judgement has no
+persona at all, runs at temperature 0, sees only the numbered list of claims,
+and is told at length what does *not* count.
+
+| split, neutral judge | result |
+| --- | --- |
+| six consecutive runs | 5–8 of 9, **0 false positives** |
+
+**Precision is the number that matters and it is holding: 54 judgements across
+six runs without once punishing a player for something they did not say.**
+Recall is noisy — between one and four real contradictions slip through per
+run — and that is the side of the trade worth being on. You are never caught
+out unfairly; you sometimes get away with a slip.
+
+The cost is that the visitor's line can no longer react to a contradiction it
+was not told about. It still has every claim in front of it and often notices
+anyway, and a meter that moves for the right reason is worth more than a line
+that gloats.
+
+## The other thing the suite caught
+
+The visitor used to repeat its own previous line word for word — the suite
+flags that separately, because a visitor asking the same question twice reads
+as broken long before anyone notices a scoring mistake. One line in the persona
+prompt fixed it.

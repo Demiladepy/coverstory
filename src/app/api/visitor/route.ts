@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { chat, extractJson } from "@/lib/aai";
-import { LEVEL_BY_ID } from "@/game/levels";
+import { LEVEL_BY_ID, type Level } from "@/game/levels";
 import { VOICE_LABEL, type LevelId, type VoiceId } from "@/lib/events";
 
 export const runtime = "nodejs";
@@ -9,17 +9,28 @@ export const dynamic = "force-dynamic";
 /**
  * The visitor's next line, and the one judgement the model is trusted with.
  *
- * It has exactly two jobs: be the character, and answer one yes/no question —
- * does what the house just said clash with something it said earlier? It is
- * never asked how suspicious that is. The meter is scored in code, for reasons
- * docs/SPIKE-FINDINGS.md sets out at length.
+ * These were one call for a while, on the theory that they are the same
+ * thought: a visitor notices the thing that does not add up and *then* decides
+ * what to ask. It reads well and it scored badly. Measured over the nine cases
+ * in scripts/judge-check.mjs, the combined call kept flagging contradictions
+ * that were not there — a grown-up being vague, or admitting they did not
+ * know, came back as a clash.
  *
- * The two jobs are one call rather than two, because they are the same thought:
- * a visitor notices the thing that does not add up and *then* decides what to
- * ask next. Splitting them would cost a second round trip to learn less.
+ * The reason is the premise. A character whose whole job is to catch you out,
+ * asked in the same breath to judge impartially, will find something; and the
+ * character wants a high temperature for variety while the judgement wants a
+ * low one for consistency. One call cannot have both.
  *
- * This runs while the grown-up's line is still playing, so it has two or three
- * seconds of cover. Being right matters more than being quick.
+ * So they are two calls now, fired together so the round trip is unchanged:
+ *
+ *   - the line, in character, hot, which is what makes the visitor good;
+ *   - the judgement, with no persona at all, cold, which is what makes the
+ *     meter fair.
+ *
+ * The cost is that the visitor's line cannot react to a contradiction it was
+ * not told about. It still has the claims in front of it and often notices
+ * anyway, and a meter that moves for the right reason is worth more than a
+ * line that gloats.
  */
 
 type Body = {
@@ -31,12 +42,8 @@ type Body = {
   warm?: boolean;
 };
 
-type Written = {
-  line: string;
-  addressed_to: string | null;
-  contradicts?: boolean;
-  contradiction?: string;
-};
+type Written = { line: string; addressed_to: string | null };
+type Judged = { contradicts?: boolean; what?: string };
 
 /** If the model falls over, the visitor still has to say something. */
 const PROD = [
@@ -44,6 +51,10 @@ const PROD = [
   "I didn't catch that. Who am I speaking to?",
   "Right. And you are?",
 ];
+
+function who(voice: string): string {
+  return VOICE_LABEL[voice as VoiceId] ?? "someone";
+}
 
 export async function POST(req: Request) {
   let body: Body;
@@ -67,6 +78,25 @@ export async function POST(req: Request) {
 
   const claims = (body.claims ?? []).slice(-8);
 
+  const [line, judgement] = await Promise.all([
+    writeLine(body, level, claims).catch(() => null),
+    judge(claims).catch(() => null),
+  ]);
+
+  if (!line) {
+    const text = PROD[Math.min(body.history.length >> 1, PROD.length - 1)];
+    return NextResponse.json({ text, addressedTo: null, contradiction: null, fallback: true });
+  }
+
+  return NextResponse.json({ ...line, contradiction: judgement });
+}
+
+/** The character. Hot, because a visitor who repeats themselves is no fun. */
+async function writeLine(
+  body: Body,
+  level: Level,
+  claims: { voice: string; text: string }[],
+) {
   const system = [
     `You are ${level.visitorName}, at the door of a family home.`,
     level.persona,
@@ -79,6 +109,8 @@ export async function POST(req: Request) {
     `- You are a person. Never mention being an AI, a model, a character or a game.`,
     `- Press for what you want. If the last answer dodged your question, ask it`,
     `  again in plainer words rather than moving on.`,
+    `- Never repeat a line you have already said. Asking the same thing twice`,
+    `  word for word is the one thing a real person at a door never does.`,
     `- Never accuse anyone of being a child, and never say the word "child". If`,
     `  something feels off, ask an ordinary question about it instead.`,
     `- The adults in this house are ${Object.values(VOICE_LABEL).join(", ")}. Only`,
@@ -87,23 +119,12 @@ export async function POST(req: Request) {
       ? [
           ``,
           `This house has already told you:`,
-          ...claims.map((c) => `- ${VOICE_LABEL[c.voice as VoiceId] ?? "someone"}: "${c.text}"`),
-          ``,
-          `Before you reply, check the last thing they said against that list. Set`,
-          `"contradicts" to true only if the two cannot both be true — a different`,
-          `person, a different place, a different time for the same thing. A`,
-          `general claim counts when it rules out a specific one: "nobody here`,
-          `drives" cannot stand beside "he took the car to the shop".`,
-          `Vagueness is not a contradiction. Changing the subject is not a`,
-          `contradiction. Not knowing something is not a contradiction. If it is`,
-          `true, say what clashes in a few words, and let your line show you`,
-          `noticed without spelling it out.`,
+          ...claims.map((c) => `- ${who(c.voice)}: "${c.text}"`),
         ]
       : []),
     ``,
     `Answer as JSON and nothing else:`,
-    `{"line": "<what you say>", "addressed_to": "dad" | "mom" | "uncle" | null,`,
-    ` "contradicts": true | false, "contradiction": "<what clashes, or empty>"}`,
+    `{"line": "<what you say>", "addressed_to": "dad" | "mom" | "uncle" | null}`,
     `Set "addressed_to" when you are speaking to one grown-up in particular,`,
     `otherwise null.`,
   ].join("\n");
@@ -115,37 +136,67 @@ export async function POST(req: Request) {
     ...body.history.slice(-10).map((turn) =>
       turn.speaker === "visitor"
         ? { role: "assistant" as const, content: turn.text }
-        : {
-            role: "user" as const,
-            content: `[${VOICE_LABEL[turn.speaker as VoiceId] ?? "someone"}] ${turn.text}`,
-          },
+        : { role: "user" as const, content: `[${who(turn.speaker)}] ${turn.text}` },
     ),
   ];
 
-  try {
-    const result = await chat({ messages, json: true, maxTokens: 200, temperature: 0.9 });
-    const written = extractJson<Written>(result.content);
-    const line = written?.line?.trim();
+  const result = await chat({ messages, json: true, maxTokens: 160, temperature: 0.9 });
+  const written = extractJson<Written>(result.content);
+  const text = written?.line?.trim();
+  if (!text) throw new Error("no line");
 
-    if (!line) throw new Error("no line");
+  const to = written?.addressed_to;
+  const addressedTo: VoiceId | null = to === "dad" || to === "mom" || to === "uncle" ? to : null;
 
-    const to = written?.addressed_to;
-    const addressedTo: VoiceId | null =
-      to === "dad" || to === "mom" || to === "uncle" ? to : null;
+  return { text, addressedTo, latencyMs: result.latencyMs };
+}
 
-    // A contradiction claimed with nothing to contradict is the model being
-    // agreeable, not observant.
-    const found = Boolean(written?.contradicts) && claims.length > 0;
-    const detail = written?.contradiction?.trim();
+/**
+ * The judgement. No persona, no stake in the answer, temperature zero.
+ *
+ * The exclusions are listed last and at length because the expensive mistake
+ * is the false one: a missed contradiction costs the player nothing, and a
+ * wrong one takes 26 points off them for something they did not do.
+ */
+async function judge(claims: { voice: string; text: string }[]) {
+  if (claims.length < 2) return { found: false };
 
-    return NextResponse.json({
-      text: line,
-      addressedTo,
-      contradiction: { found, detail: found ? detail : undefined },
-      latencyMs: result.latencyMs,
-    });
-  } catch {
-    const text = PROD[Math.min(body.history.length >> 1, PROD.length - 1)];
-    return NextResponse.json({ text, addressedTo: null, contradiction: null, fallback: true });
-  }
+  const numbered = claims.map((c, i) => `${i + 1}. ${who(c.voice)}: "${c.text}"`);
+
+  const system = [
+    `You check statements for contradictions. You are not a character and you`,
+    `have no stake in the answer.`,
+    ``,
+    `Everyone in this house is a different person: Dad, Mom and Uncle can each`,
+    `be somewhere different without any conflict.`,
+    ``,
+    `Answer true only if the LAST statement cannot be true at the same time as`,
+    `an earlier one. Nothing else counts. In particular, none of the following`,
+    `is a contradiction:`,
+    `- being vague, or not giving a time`,
+    `- not knowing, not being sure, or not being able to say`,
+    `- changing the subject, or not answering`,
+    `- a different person being somewhere else`,
+    `- saying more, or less, than before about the same thing`,
+    ``,
+    `Two statements about the same person in different places, or the same`,
+    `fact told two different ways, do clash — say so plainly when they do.`,
+    ``,
+    `Answer as JSON and nothing else:`,
+    `{"contradicts": true | false, "what": "<the two statements that clash>"}`,
+  ].join("\n");
+
+  const result = await chat({
+    messages: [
+      { role: "system", content: system },
+      { role: "user", content: numbered.join("\n") },
+    ],
+    json: true,
+    maxTokens: 120,
+    temperature: 0,
+  });
+
+  const verdict = extractJson<Judged>(result.content);
+  const found = Boolean(verdict?.contradicts);
+  return { found, detail: found ? verdict?.what?.trim() : undefined };
 }
