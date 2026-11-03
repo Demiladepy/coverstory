@@ -130,6 +130,8 @@ export function createEngine(opts: {
    */
   const claims: Claim[] = [];
 
+  /** this door's prep has been handed in; a second hand-in is ignored */
+  let prepSubmitted = false;
   /** the three prepared lines, and which of them have been spent */
   let excuses: Excuse[] = [];
   const spent = new Set<number>();
@@ -259,6 +261,7 @@ export function createEngine(opts: {
     carried.text = "";
     carried.words.length = 0;
     over = false;
+    prepSubmitted = false;
 
     emit({
       type: "prep_start",
@@ -599,6 +602,14 @@ export function createEngine(opts: {
     },
 
     async submitPrep(written) {
+      // The countdown hands prep in when it runs out and the button hands it
+      // in when it is pressed, so pressing it as the clock hits zero — or
+      // simply pressing it twice — used to open the door twice: two openers
+      // talking over each other, two level_start events, one conversation the
+      // visitor had with themselves.
+      if (prepSubmitted || stopped) return;
+      prepSubmitted = true;
+
       excuses = written;
       emit({ type: "prep_end", level: level.id, excuses, at: at() });
 

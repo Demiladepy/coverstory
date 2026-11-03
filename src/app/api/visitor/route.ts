@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { chat, extractJson } from "@/lib/aai";
 import { LEVEL_BY_ID, type Level } from "@/game/levels";
 import { VOICE_LABEL, type LevelId, type VoiceId } from "@/lib/events";
+import { caller, take, trim } from "@/lib/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -76,13 +77,39 @@ function claimsNothing(text: string): boolean {
   return CLAIMS_NOTHING.test(text);
 }
 
+/**
+ * A night asks for about twenty lines, dead air included. This allows twenty
+ * nights an hour from one address, which no player reaches and a script does
+ * in seconds.
+ *
+ * /api/token guards how many nights can START. Nothing guarded what a night
+ * could then ask for, and this route spends two model calls per request on
+ * somebody's own key, from a public URL, with no session of any kind. That
+ * was the cheapest thing on the internet to abuse.
+ */
+const LINES_PER_HOUR = 400;
+
 export async function POST(req: Request) {
+  if (!take([{ key: `lines:${caller(req)}`, limit: LINES_PER_HOUR }]).ok) {
+    return NextResponse.json({ error: "budget" }, { status: 429 });
+  }
+
   let body: Body;
   try {
     body = (await req.json()) as Body;
   } catch {
     return NextResponse.json({ error: "bad_request" }, { status: 400 });
   }
+
+  // Every line that reaches a prompt is bounded, and there are only ever so
+  // many of them. Without this, the number of entries was capped and their
+  // length was not, which bounds nothing at all.
+  body.history = (Array.isArray(body.history) ? body.history : [])
+    .slice(-10)
+    .map((turn) => ({ speaker: String(turn?.speaker ?? ""), text: trim(turn?.text) }));
+  body.claims = (Array.isArray(body.claims) ? body.claims : [])
+    .slice(-24)
+    .map((claim) => ({ voice: String(claim?.voice ?? ""), text: trim(claim?.text) }));
 
   // The first completion of a run costs about three seconds and every one after
   // it costs one. That first one would land on the player's first answer, which

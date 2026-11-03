@@ -367,11 +367,29 @@ export default function Play() {
       engine.current?.release();
     };
 
+    // A keyup goes to whichever window has focus, so alt-tabbing mid-sentence
+    // means this one never hears it: the key stays down for ever, the mic keeps
+    // streaming, and the game sits saying DAD IS ANSWERING until the session
+    // cap kills the socket several minutes later. Switching away is the same
+    // as letting go.
+    const letGo = () => {
+      if (!held) return;
+      setHeld(null);
+      engine.current?.release();
+    };
+    const awayOrHidden = () => {
+      if (document.hidden) letGo();
+    };
+
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
+    window.addEventListener("blur", letGo);
+    document.addEventListener("visibilitychange", awayOrHidden);
     return () => {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", letGo);
+      document.removeEventListener("visibilitychange", awayOrHidden);
     };
   }, [phase, held]);
 

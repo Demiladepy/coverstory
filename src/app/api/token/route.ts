@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { mintSttToken, mintTtsToken } from "@/lib/aai";
+import { caller, recent, take, HOUR_MS } from "@/lib/guard";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,9 +13,6 @@ export const dynamic = "force-dynamic";
  * instances. That is the right size of guard for a hackathon link; if the run
  * cap ever has to be real, it moves to a KV store, not to a bigger map.
  */
-
-const WINDOW_MS = 60 * 60 * 1000;
-const runs = new Map<string, number[]>();
 
 function maxRunsPerHour(): number {
   return Number(process.env.MAX_RUNS_PER_BROWSER_PER_HOUR ?? 5);
@@ -29,48 +27,6 @@ function browserId(req: Request): string {
   const match = cookie.match(/(?:^|;\s*)cs_bid=([^;]+)/);
   if (match) return match[1];
   return crypto.randomUUID();
-}
-
-/** The caller's address, as the platform reports it. */
-function caller(req: Request): string {
-  const forwarded = req.headers.get("x-forwarded-for") ?? "";
-  return forwarded.split(",")[0]?.trim() || "unknown";
-}
-
-function since(key: string): number[] {
-  const now = Date.now();
-  return (runs.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
-}
-
-/**
- * Spend one run against every bucket at once, and only if all of them have
- * room.
- *
- * Counting the cookie alone was not a guard at all: no cookie meant a fresh
- * identity, so anything that simply declined to keep cookies had no limit.
- * The address is the bucket that cannot be thrown away.
- *
- * Its allowance is deliberately several times the per-browser one, because the
- * one place this link is most likely to be opened by several people at once —
- * a room full of people on the same wifi — is exactly the place where locking
- * them out would be worst.
- */
-function spend(buckets: { key: string; limit: number }[]): { ok: boolean; remaining: number } {
-  const lists = buckets.map((b) => ({ ...b, list: since(b.key) }));
-
-  if (lists.some((b) => b.list.length >= b.limit)) {
-    for (const b of lists) runs.set(b.key, b.list);
-    return { ok: false, remaining: 0 };
-  }
-
-  const now = Date.now();
-  let remaining = Number.POSITIVE_INFINITY;
-  for (const b of lists) {
-    b.list.push(now);
-    runs.set(b.key, b.list);
-    remaining = Math.min(remaining, b.limit - b.list.length);
-  }
-  return { ok: true, remaining };
 }
 
 /**
@@ -88,7 +44,7 @@ const REFILLS_PER_NIGHT = 10;
 function resume(run: string): boolean {
   const night = nights.get(run);
   if (!night) return false;
-  if (Date.now() - night.startedAt > WINDOW_MS) {
+  if (Date.now() - night.startedAt > HOUR_MS) {
     nights.delete(run);
     return false;
   }
@@ -100,7 +56,7 @@ function resume(run: string): boolean {
 function sweep() {
   const now = Date.now();
   for (const [id, night] of nights) {
-    if (now - night.startedAt > WINDOW_MS) nights.delete(id);
+    if (now - night.startedAt > HOUR_MS) nights.delete(id);
   }
 }
 
@@ -113,9 +69,9 @@ export async function POST(req: Request) {
   const resumed = typeof body.run === "string" && resume(body.run);
   const run = resumed ? body.run! : crypto.randomUUID();
 
-  let remaining = limit - since(`browser:${id}`).length;
+  let remaining = limit - recent(`browser:${id}`).length;
   if (!resumed) {
-    const budget = spend([
+    const budget = take([
       { key: `browser:${id}`, limit },
       { key: `caller:${caller(req)}`, limit: limit * 5 },
     ]);
