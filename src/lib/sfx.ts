@@ -85,6 +85,18 @@ export function knock(ctx: AudioContext) {
 }
 
 /**
+ * One rap, softer, when the house has gone quiet for too long.
+ *
+ * Not a warning noise — a person on a doorstep, wondering whether anyone
+ * heard them. It says the same thing the draining bar says, for anyone who is
+ * listening rather than looking.
+ */
+export function nudge(ctx: AudioContext) {
+  if (muted) return;
+  rap(ctx, ctx.currentTime + 0.03, 0.3);
+}
+
+/**
  * The meter landing.
  *
  * Up is a tone that falls — the sound of something settling against you.

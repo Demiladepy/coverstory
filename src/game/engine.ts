@@ -27,7 +27,7 @@ import { speakLine, type SpokenLine } from "@/lib/speak";
 import { GROWNUP_BY_ID } from "@/game/voices";
 import { LEVEL_BY_ID } from "@/game/levels";
 import { shapeForSpeech } from "@/game/shout";
-import { knock, meterMoved } from "@/lib/sfx";
+import { knock, meterMoved, nudge } from "@/lib/sfx";
 import {
   CAUGHT_AT,
   DEAD_AIR_GRACE_MS,
@@ -99,6 +99,8 @@ export function createEngine(opts: {
   let askedFor: VoiceId | null = null;
   let visitorSaid = "";
   let deadAirTimer: ReturnType<typeof setTimeout> | null = null;
+  /** the single rap partway through the silence, before the penalty */
+  let nudgeTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** words from turns the model closed by itself, mid-hold */
   const carried = { text: "", words: [] as SttWord[] };
@@ -216,6 +218,8 @@ export function createEngine(opts: {
   function clearDeadAir() {
     if (deadAirTimer) clearTimeout(deadAirTimer);
     deadAirTimer = null;
+    if (nudgeTimer) clearTimeout(nudgeTimer);
+    nudgeTimer = null;
   }
 
   /**
@@ -261,8 +265,20 @@ export function createEngine(opts: {
   function ready() {
     if (over) return;
     canSpeak = true;
-    emit({ type: "mic_state", state: "idle", at: at() });
+    // graceMs is what lets the screen show the silence running out. The engine
+    // stays the authority on when it actually runs out; the bar is a report.
+    emit({ type: "mic_state", state: "idle", graceMs: DEAD_AIR_GRACE_MS, at: at() });
     clearDeadAir();
+
+    // Two thirds of the way through the quiet, one rap. It says the same thing
+    // the draining bar says, for anyone listening rather than looking.
+    nudgeTimer = setTimeout(
+      () => {
+        if (ctx && canSpeak && !holding && !awaiting && !over) nudge(ctx);
+      },
+      Math.round(DEAD_AIR_GRACE_MS * 0.64),
+    );
+
     deadAirTimer = setTimeout(() => void onDeadAir(), DEAD_AIR_GRACE_MS);
   }
 

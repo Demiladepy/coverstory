@@ -911,3 +911,15 @@ label.pick {
     transition: none;
   }
 }
+
+/* The same slot as the voice meter, drained rather than filled: while the
+   floor is yours and you are not using it, this is how much of it is left.
+   No notch — there is no threshold here, only the end. */
+.vu.patience .vu-fill {
+  background: var(--cold-dim);
+  transition: width 90ms linear, background-color 400ms ease;
+}
+
+.vu.patience.thin .vu-fill {
+  background: var(--alarm);
+}

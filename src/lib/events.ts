@@ -145,6 +145,16 @@ export type GameEvent =
        */
       level?: number;
       baseline?: number;
+      /**
+       * How long the house can stay quiet before the visitor starts to wonder,
+       * sent when the floor becomes the player's.
+       *
+       * Dead air was the one pressure with no tell: seven seconds of nothing
+       * and the meter moved, with the first notice being the penalty itself.
+       * A rule you only learn by being punished by it reads as unfair rather
+       * than hard.
+       */
+      graceMs?: number;
       at: number;
     }
   | {

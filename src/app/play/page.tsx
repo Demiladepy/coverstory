@@ -71,6 +71,8 @@ export default function Play() {
   const [hushed, setHushed] = useState(false);
   const [loudness, setLoudness] = useState({ level: 0, baseline: 0.05 });
   const [turnsDone, setTurnsDone] = useState(0);
+  const [patience, setPatience] = useState<{ ms: number; anchor: number } | null>(null);
+  const [quietFor, setQuietFor] = useState(0);
   const [spokenText, setSpokenText] = useState("");
   const [micState, setMicState] = useState<"idle" | "listening" | "finalising">("idle");
   const [partial, setPartial] = useState("");
@@ -131,6 +133,13 @@ export default function Play() {
           setLoudness({ level: event.level, baseline: event.baseline ?? 0.05 });
         }
         if (event.state !== "listening") setLoudness((l) => ({ ...l, level: 0 }));
+        // The floor is the player's, and the clock on it starts now.
+        if (event.state === "idle" && event.graceMs !== undefined) {
+          setPatience({ ms: event.graceMs, anchor: performance.now() });
+          setQuietFor(0);
+        } else if (event.state !== "idle") {
+          setPatience(null);
+        }
         break;
       case "level_end":
         setResult(event.result);
@@ -177,6 +186,8 @@ export default function Play() {
     setRecording(null);
     setTurnsDone(0);
     setLoudness({ level: 0, baseline: 0.05 });
+    setPatience(null);
+    setQuietFor(0);
   }, [levelId]);
 
   // Remembered per browser, and harmless if storage is unavailable.
@@ -202,6 +213,21 @@ export default function Play() {
       return now;
     });
   }, []);
+
+  // Watch the silence run out. The engine still decides when it has — this
+  // only reports it, so a browser that throttles timers cannot make the game
+  // disagree with itself.
+  useEffect(() => {
+    if (!patience) return;
+    let frame = 0;
+    const watch = () => {
+      const gone = performance.now() - patience.anchor;
+      setQuietFor(Math.min(patience.ms, gone));
+      if (gone < patience.ms) frame = requestAnimationFrame(watch);
+    };
+    frame = requestAnimationFrame(watch);
+    return () => cancelAnimationFrame(frame);
+  }, [patience]);
 
   useEffect(() => () => engine.current?.stop(), []);
 
@@ -307,6 +333,11 @@ export default function Play() {
   const fullScale = shoutAt / 0.62;
   const filled = Math.min(100, (loudness.level / fullScale) * 100);
   const shouting = loudness.level > shoutAt;
+
+  // The same slot shows the voice while you talk and the patience while you
+  // do not, because they are the same thing: the state of your turn.
+  const patienceLeft = patience ? 1 - quietFor / patience.ms : 1;
+  const running = patience !== null && patienceLeft > 0;
 
   const trouble = error && phase !== "failed" ? <p className="trouble">{error}</p> : null;
 
@@ -520,12 +551,19 @@ export default function Play() {
             : micState === "finalising"
               ? "…"
               : "Hold 1, 2 or 3 to answer"}
-          {micState === "listening" && (
+          {micState === "listening" ? (
             <span className={`vu ${shouting ? "loud" : ""}`} aria-hidden="true">
               <span className="vu-fill" style={{ width: `${filled}%` }} />
               <span className="vu-mark" />
             </span>
-          )}
+          ) : micState === "idle" && running ? (
+            <span
+              className={`vu patience ${patienceLeft < 0.34 ? "thin" : ""}`}
+              aria-hidden="true"
+            >
+              <span className="vu-fill" style={{ width: `${patienceLeft * 100}%` }} />
+            </span>
+          ) : null}
         </div>
 
         <p className="heard">{partial || spokenText || " "}</p>
