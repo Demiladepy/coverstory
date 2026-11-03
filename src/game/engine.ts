@@ -88,6 +88,8 @@ export function createEngine(opts: {
   /** a release is out and we are waiting for its final turn */
   let awaiting = false;
   let heldVoice: VoiceId = "dad";
+  /** the speaker's normal level, taken once as the key goes down */
+  let holdBaseline = 0.05;
   let turnsSurvived = 0;
   let lines = 0;
   let suspicion = level.startSuspicion;
@@ -116,7 +118,10 @@ export function createEngine(opts: {
 
   const emit = (event: GameEvent) => {
     if (stopped) return;
-    journal.push(event);
+    // mic_state is what the screen is doing right now, not what happened. The
+    // replay is built from this journal, and a live level arrives fifteen
+    // times a second, so it is reported and not recorded.
+    if (event.type !== "mic_state") journal.push(event);
     opts.onEvent(event);
   };
 
@@ -440,7 +445,19 @@ export function createEngine(opts: {
       // still covers the microphone request, because it is made immediately.
       setup = (async () => {
         try {
-          mic = await startMic((frame) => stt?.send(frame.pcm));
+          mic = await startMic((frame) => {
+            stt?.send(frame.pcm);
+            // Only while the key is down: this is the player watching their
+            // own voice, and there is nothing to watch when nobody is talking.
+            if (!holding) return;
+            emit({
+              type: "mic_state",
+              state: "listening",
+              level: frame.rms,
+              baseline: holdBaseline,
+              at: at(),
+            });
+          });
         } catch {
           fail("mic_denied", "Cover Story needs the microphone — it is the whole game.", false);
           throw new Error("no mic");
@@ -534,6 +551,9 @@ export function createEngine(opts: {
     hold(voice) {
       if (stopped || over || holding || awaiting || !canSpeak || !mic) return;
       clearDeadAir();
+      // Once per turn rather than per frame: a median over the whole track is
+      // cheap occasionally and wasteful fifteen times a second.
+      holdBaseline = mic.baseline();
       holding = true;
       canSpeak = false;
       heldVoice = voice;

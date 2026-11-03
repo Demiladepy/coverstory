@@ -25,6 +25,7 @@ import { createEngine, type Engine } from "@/game/engine";
 import { LEVELS, LEVEL_BY_ID } from "@/game/levels";
 import { GROWNUPS } from "@/game/voices";
 import { REASON_LABEL, type ScoredReason } from "@/game/score";
+import { SHOUT_RATIO } from "@/game/shout";
 import {
   EXCUSE_KEYS,
   PREP_SECONDS,
@@ -68,6 +69,8 @@ export default function Play() {
   const [speech, setSpeech] = useState<Speech | null>(null);
   const [intoClip, setIntoClip] = useState(-1);
   const [hushed, setHushed] = useState(false);
+  const [loudness, setLoudness] = useState({ level: 0, baseline: 0.05 });
+  const [turnsDone, setTurnsDone] = useState(0);
   const [spokenText, setSpokenText] = useState("");
   const [micState, setMicState] = useState<"idle" | "listening" | "finalising">("idle");
   const [partial, setPartial] = useState("");
@@ -112,6 +115,7 @@ export default function Play() {
       case "player_line": {
         setSpokenText(event.spokenText);
         setPartial("");
+        setTurnsDone((n) => n + 1);
         const slot = event.fromExcuseSlot;
         if (slot !== null) setSpent((s) => (s.includes(slot) ? s : [...s, slot]));
         break;
@@ -123,6 +127,10 @@ export default function Play() {
       case "mic_state":
         setMicState(event.state);
         if (event.partial !== undefined) setPartial(event.partial);
+        if (event.level !== undefined) {
+          setLoudness({ level: event.level, baseline: event.baseline ?? 0.05 });
+        }
+        if (event.state !== "listening") setLoudness((l) => ({ ...l, level: 0 }));
         break;
       case "level_end":
         setResult(event.result);
@@ -167,6 +175,8 @@ export default function Play() {
     setPrepLeft(PREP_SECONDS);
     setSpent([]);
     setRecording(null);
+    setTurnsDone(0);
+    setLoudness({ level: 0, baseline: 0.05 });
   }, [levelId]);
 
   // Remembered per browser, and harmless if storage is unavailable.
@@ -289,6 +299,14 @@ export default function Play() {
 
   const level = LEVEL_BY_ID[levelId];
   const hot = suspicion >= HOT;
+
+  // The bar is scaled so the shout line always sits at the same place on it,
+  // whoever is talking. Where your normal voice lands is not the point; how
+  // far past it you are is.
+  const shoutAt = Math.max(0.02, loudness.baseline) * SHOUT_RATIO;
+  const fullScale = shoutAt / 0.62;
+  const filled = Math.min(100, (loudness.level / fullScale) * 100);
+  const shouting = loudness.level > shoutAt;
 
   const trouble = error && phase !== "failed" ? <p className="trouble">{error}</p> : null;
 
@@ -466,6 +484,11 @@ export default function Play() {
 
         <div className="whoisit">
           {level.brief} &nbsp;·&nbsp; <b>{level.visitorName}</b>
+          <span className="pips" title={`${turnsDone} of ${level.turnsToWin} answered`}>
+            {Array.from({ length: level.turnsToWin }, (_, i) => (
+              <i key={i} className={i < turnsDone ? "on" : ""} />
+            ))}
+          </span>
         </div>
         <p className="saidoutside">
           {speech && speech.timings.length > 0 ? (
@@ -497,6 +520,12 @@ export default function Play() {
             : micState === "finalising"
               ? "…"
               : "Hold 1, 2 or 3 to answer"}
+          {micState === "listening" && (
+            <span className={`vu ${shouting ? "loud" : ""}`} aria-hidden="true">
+              <span className="vu-fill" style={{ width: `${filled}%` }} />
+              <span className="vu-mark" />
+            </span>
+          )}
         </div>
 
         <p className="heard">{partial || spokenText || " "}</p>

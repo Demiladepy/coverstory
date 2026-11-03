@@ -135,6 +135,16 @@ export type GameEvent =
       state: "idle" | "listening" | "finalising";
       /** live partial transcript while listening */
       partial?: string;
+      /**
+       * How loud the player is right now, 0..1, and how loud they usually are.
+       *
+       * Both, because loudness on its own means nothing: the game scores a
+       * shout against the speaker's own normal level, so the only honest way
+       * to show it is to show where their normal sits. Without this the whole
+       * shout mechanic is invisible and nobody discovers it.
+       */
+      level?: number;
+      baseline?: number;
       at: number;
     }
   | {

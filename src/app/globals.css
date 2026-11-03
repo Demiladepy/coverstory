@@ -833,3 +833,81 @@ label.pick {
   border-color: #272c38;
   color: var(--cold);
 }
+
+/* Your own voice, while the key is down.
+
+   The shout mechanic was invisible: nothing on screen said that how loudly
+   you speak changes what comes out of the house, so nobody would ever find
+   it. This is the only readout the player gets of themselves, and the notch
+   is the whole point of it — the game scores a shout against your own normal
+   level, so the bar is scaled to put that line in the same place whoever is
+   talking. */
+.vu {
+  position: relative;
+  display: inline-block;
+  width: 128px;
+  flex: none;
+  margin-left: 4px;
+  height: 4px;
+  align-self: center;
+  border-radius: 999px;
+  background: #1b1f28;
+  overflow: visible;
+}
+
+.vu-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cold-dim);
+  /* Fast up, slow down: a meter that lags the voice is worse than none. */
+  transition: width 60ms linear, background-color 140ms ease;
+}
+
+.vu.loud .vu-fill {
+  background: var(--lamp);
+}
+
+/* Where shouting begins. */
+.vu-mark {
+  position: absolute;
+  top: -3px;
+  left: 62%;
+  width: 2px;
+  height: 10px;
+  border-radius: 1px;
+  background: var(--lamp-deep);
+}
+
+.vu.loud .vu-mark {
+  background: var(--lamp);
+}
+
+/* How many more answers before they go away. */
+.pips {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: 10px;
+  vertical-align: middle;
+}
+
+.pips i {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: transparent;
+  border: 1px solid var(--cold-dim);
+  transition: background-color 260ms ease, border-color 260ms ease;
+}
+
+.pips i.on {
+  background: var(--lamp-deep);
+  border-color: var(--lamp-deep);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vu-fill,
+  .pips i {
+    transition: none;
+  }
+}
