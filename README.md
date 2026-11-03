@@ -41,9 +41,9 @@ turn ends at once. Hesitations are kept deliberately — a re-voiced line only
 sounds human if the "uh"s survive, and on `universal-3-6-pro` they do.
 
 **LLM Gateway** is the visitor. It writes every line after the opener, in
-character, pressing for what it came for. It also answers the single judgement
-the game trusts a model with: does what the house just said clash with
-something the house said earlier?
+character, pressing for what it came for. A second, colder call answers the
+single judgement the game trusts a model with: does what the house just said
+clash with something the house said earlier?
 
 **Text-to-Speech** is the whole cast — the visitor at the door and the three
 grown-ups who answer. It runs over `/v1/speech/events`, the one route that
@@ -86,11 +86,46 @@ written to trip one flag each, the models blurred the categories — the best of
 them read a reply full of hesitation as childish rather than evasive. That is a
 fair reading of the *text*, and a useless signal, because the code does not
 have to guess: it can hear the hesitation and time the gaps. The model is asked
-the one question text alone can answer, and it gets that one right 5 times out
-of 5 with no false positives.
+the one question text alone can answer.
 
-The asymmetry is deliberate. A missed contradiction costs the player nothing; a
-false one costs 26 points for something they did not do.
+It is asked on its own, by a second call with no persona at all, at temperature
+zero. That was not the first design — writing the visitor's line and judging
+the answer were one call, because they feel like one thought. Measured over
+nine cases, that call produced two false positives every run: a grown-up being
+vague, or admitting they did not know, came back as a contradiction. A
+character whose whole job is to catch you out, asked in the same breath to
+judge impartially, will find something.
+
+Split in two and fired together, six consecutive runs gave 5 to 8 of 9 correct
+and **zero false positives in 54 judgements**.
+
+The asymmetry is deliberate, and it is why precision is the number quoted
+rather than accuracy. A missed contradiction costs the player nothing; a false
+one costs 26 points for something they did not do. Recall is noisy; you
+sometimes get away with a slip, and you are never caught out unfairly.
+
+`node scripts/judge-check.mjs` re-runs the suite against a local server.
+
+## Why it looks like that
+
+One screen, and it never scrolls. Three zones: what is beyond the door, the
+door itself, and your side of it.
+
+That shape is borrowed from *Papers, Please*, where the lesson is not the pixel
+art but that the interface **is** the workplace. There is no dashboard
+reporting your state; there is a booth, a desk and a stamp, all in one cramped
+view with nowhere to look away to. The stress is the layout. This started life
+as stacked panels with headings and a scrollbar, which is what a settings page
+looks like.
+
+Colour has three jobs and they never swap. Cold blue-grey is everything
+outside — the visitor, their voice, the dark. Amber is light from inside the
+house and nothing else: your keys, your words, never a background and never a
+decoration. Red is suspicion and nothing else.
+
+Which is why the meter is the light under the door. It widens as they lean in,
+and past 65 it stops being your hallway lamp. You read it without looking at
+it, and the number is still there when you want it.
 
 ## Running it
 
