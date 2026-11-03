@@ -963,3 +963,27 @@ label.pick {
     transition: none;
   }
 }
+
+/* Where one door closes and the next one knocks, on the tape. */
+.door-mark {
+  margin: 16px 0 8px;
+  font-family: var(--chrome);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cold-dim);
+  text-align: center;
+}
+
+.tape > div:first-child .door-mark {
+  margin-top: 0;
+}
+
+/* Each beat now sits in a wrapper that can carry a door marker, so the
+   wrapper has to be the flex box the beat aligns itself inside — otherwise
+   them-left and us-right both collapse to full width. */
+.tape > div {
+  display: flex;
+  flex-direction: column;
+}

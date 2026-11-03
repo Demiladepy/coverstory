@@ -51,7 +51,7 @@ function bare(word: string): string {
   return word.replace(/[^\p{L}\p{N}']/gu, "").toLowerCase();
 }
 
-type Phase = "ready" | "prep" | "opening" | "playing" | "over" | "failed";
+type Phase = "ready" | "prep" | "opening" | "playing" | "between" | "over" | "failed";
 
 const BLANK: Excuse[] = [
   { text: "", voice: "dad" },
@@ -70,7 +70,11 @@ const HINTS = [
 const HOT = 65;
 
 export default function Play() {
+  /** the door the night starts at */
   const [levelId, setLevelId] = useState<LevelId>("pizza");
+  /** the door being answered right now, which the engine decides */
+  const [playing, setPlaying] = useState<LevelId>("pizza");
+  const [cleared, setCleared] = useState(0);
   const [phase, setPhase] = useState<Phase>("ready");
   const [visitorLine, setVisitorLine] = useState("");
   const [addressedTo, setAddressedTo] = useState<VoiceId | null>(null);
@@ -105,10 +109,24 @@ export default function Play() {
   const onEvent = useCallback((event: GameEvent) => {
     switch (event.type) {
       case "prep_start":
+        // A new door. Everything about the last one goes except the tape and
+        // the story, both of which the engine is keeping.
+        setPlaying(event.level);
+        setSuspicion(LEVEL_BY_ID[event.level].startSuspicion);
         setPhase("prep");
         setPrepLeft(event.secondsAllowed);
+        setDrafts(BLANK);
+        setSpent([]);
+        setTurnsDone(0);
+        setReasons([]);
+        setVisitorLine("");
+        setAddressedTo(null);
+        setSpeech(null);
+        setHouse(null);
+        setPatience(null);
         break;
       case "level_start":
+        setPlaying(event.level);
         setPhase("playing");
         break;
       case "visitor_line":
@@ -156,7 +174,13 @@ export default function Play() {
         }
         break;
       case "level_end":
+        // One door closing is not the end of the night; run_end is.
         setResult(event.result);
+        setPhase("between");
+        break;
+      case "run_end":
+        setResult(event.result);
+        setCleared(event.levelsCleared);
         setPhase("over");
         // Grabbed here rather than on teardown: the engine still holds every
         // clip it played, and stopping it is what throws them away.
@@ -177,8 +201,12 @@ export default function Play() {
     setError(null);
     setErrorCode(null);
     setSuspicion(LEVEL_BY_ID[levelId].startSuspicion);
+    setPlaying(levelId);
+    setCleared(0);
     setPhase("opening");
-    const made = createEngine({ level: levelId, onEvent });
+    // The night runs from the door you picked to the last one.
+    const from = LEVELS.findIndex((l) => l.id === levelId);
+    const made = createEngine({ levels: LEVELS.slice(from).map((l) => l.id), onEvent });
     engine.current = made;
     await made.start();
   }, [levelId, onEvent]);
@@ -197,6 +225,8 @@ export default function Play() {
     setPrepLeft(PREP_SECONDS);
     setSpent([]);
     setRecording(null);
+    setPlaying(levelId);
+    setCleared(0);
     setTurnsDone(0);
     setLoudness({ level: 0, baseline: 0.05 });
     setPatience(null);
@@ -357,8 +387,9 @@ export default function Play() {
     engine.current?.release();
   };
 
-  const level = LEVEL_BY_ID[levelId];
+  const level = LEVEL_BY_ID[playing];
   const hot = suspicion >= HOT;
+  const doorsTonight = LEVELS.length - LEVELS.findIndex((l) => l.id === levelId);
 
   // The bar is scaled so the shout line always sits at the same place on it,
   // whoever is talking. Where your normal voice lands is not the point; how
@@ -388,9 +419,15 @@ export default function Play() {
             Uncle&rsquo;s voice, stammers and all. Let go when you&rsquo;re done.
           </p>
 
-          <p className="title" style={{ marginTop: 26 }}>Who it is tonight</p>
+          <p className="title" style={{ marginTop: 26 }}>
+            Tonight &mdash; {doorsTonight} {doorsTonight === 1 ? "door" : "doors"}, in order
+          </p>
           <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 22 }}>
-            {LEVELS.map((l) => (
+            {LEVELS.map((l, i) => {
+              const from = LEVELS.findIndex((x) => x.id === levelId);
+              // Doors before the one you picked are not part of tonight.
+              const skipped = i < from;
+              return (
               <button
                 key={l.id}
                 className="note"
@@ -399,17 +436,25 @@ export default function Play() {
                   borderColor: l.id === levelId ? "var(--lamp-deep)" : "#272c38",
                   color: l.id === levelId ? "var(--lamp)" : "var(--cold-dim)",
                   padding: "10px 12px",
+                  opacity: skipped ? 0.35 : 1,
+                  textDecoration: skipped ? "line-through" : "none",
                 }}
-                onClick={() => setLevelId(l.id)}
+                onClick={() => {
+                  setLevelId(l.id);
+                  setPlaying(l.id);
+                }}
               >
                 <span className="txt" style={{ fontSize: 13 }}>{l.brief}</span>
                 <span className="num">{l.turnsToWin} turns</span>
               </button>
-            ))}
+              );
+            })}
           </div>
 
           <p className="lede" style={{ marginBottom: 18 }}>
-            They want {level.want}.
+            They want {level.want}. Get through all {doorsTonight} and nobody ever finds out
+            you were on your own &mdash; but what you tell one of them is still on the record
+            when the next one knocks.
           </p>
           <button className="go" onClick={() => void begin()}>
             Get your story straight
@@ -509,29 +554,51 @@ export default function Play() {
     );
   }
 
-  if (phase === "over") {
+  if (phase === "between") {
     return (
       <main className="night">
-        <div className="card scroller">
+        <div className="card">
           <p className="title">{result === "won" ? "They left" : "Caught"}</p>
           <h1 className="big-line">
             {result === "won"
-              ? "You talked them off the step."
+              ? "That one is off the step."
               : "They stopped believing you."}
           </h1>
           <p className="lede">
             {result === "won"
-              ? `The meter finished at ${suspicion}. The story held — this time.`
-              : "Something in it stopped adding up, and they heard it."}
+              ? `${turnsDone} answers, and the meter finished at ${suspicion}. Someone else is coming up the path.`
+              : "The night ends here."}
+          </p>
+        </div>
+      </main>
+    );
+  }
+
+  if (phase === "over") {
+    return (
+      <main className="night">
+        <div className="card scroller">
+          <p className="title">{result === "won" ? "You got away with it" : "Caught"}</p>
+          <h1 className="big-line">
+            {result === "won"
+              ? "Nobody ever asked to come in."
+              : "They stopped believing you."}
+          </h1>
+          <p className="lede">
+            {result === "won"
+              ? `All ${cleared} of them talked off the step, and the story held every time.`
+              : cleared === 0
+                ? "The first one saw through it. Something stopped adding up, and they heard it."
+                : `${cleared} ${cleared === 1 ? "door" : "doors"} survived before something stopped adding up.`}
           </p>
 
           {recording && result && (
-            <Replay log={recording} level={level} result={result} suspicion={suspicion} />
+            <Replay log={recording} result={result} suspicion={suspicion} />
           )}
 
           <div style={{ display: "flex", gap: 10, marginTop: 18 }}>
             <button className="go" onClick={stop}>
-              Another door
+              Another night
             </button>
           </div>
         </div>

@@ -16,13 +16,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { encodeWav, playClip, stitch } from "@/lib/wav";
 import { VOICE_LABEL, type LevelResult, type RunLog, type VoiceId, type WordTiming } from "@/lib/events";
-import type { Level } from "@/game/levels";
 
 const GAP_MS = 420;
 
 type Beat = {
   id: string;
   who: "visitor" | VoiceId;
+  /** whose door this was — a night has several, and they are different people */
+  visitorName: string;
+  /** the first beat behind this door, so the tape can show where one ends */
+  opensDoor: string | null;
   text: string;
   timings: WordTiming[];
   fromExcuseSlot: number | null;
@@ -33,8 +36,17 @@ type Beat = {
 function build(log: RunLog): Beat[] {
   const beats: Beat[] = [];
   let at = 0;
+  // A night has several visitors. Without this every line on the tape would
+  // be attributed to whoever knocked last.
+  let visitorName = "the visitor";
+  let brief: string | null = null;
 
   for (const event of log.events) {
+    if (event.type === "level_start") {
+      visitorName = event.visitorName;
+      brief = event.brief;
+      continue;
+    }
     if (event.type !== "visitor_line" && event.type !== "player_line") continue;
 
     const clip = log.clips.get(event.id);
@@ -47,6 +59,8 @@ function build(log: RunLog): Beat[] {
     beats.push({
       id: event.id,
       who: event.type === "visitor_line" ? "visitor" : event.voice,
+      visitorName,
+      opensDoor: brief,
       text: event.type === "visitor_line" ? event.text : event.spokenText,
       timings: event.timings,
       fromExcuseSlot: event.type === "player_line" ? event.fromExcuseSlot : null,
@@ -55,6 +69,7 @@ function build(log: RunLog): Beat[] {
     });
 
     at += seconds + GAP_MS / 1000;
+    brief = null; // only the first beat behind a door announces it
   }
 
   return beats;
@@ -62,12 +77,10 @@ function build(log: RunLog): Beat[] {
 
 export default function Replay({
   log,
-  level,
   result,
   suspicion,
 }: {
   log: RunLog;
-  level: Level;
   result: LevelResult;
   suspicion: number;
 }) {
@@ -126,26 +139,27 @@ export default function Replay({
 
     const link = document.createElement("a");
     link.href = url;
-    link.download = `cover-story-${level.id}.wav`;
+    link.download = "cover-story.wav";
     link.click();
     // Revoking immediately can cancel the download in some browsers.
     setTimeout(() => URL.revokeObjectURL(url), 10_000);
-  }, [beats, log, level]);
+  }, [beats, log]);
 
   const summary = useCallback(() => {
     const said = beats
       .filter((b) => b.who !== "visitor")
       .map((b) => `${VOICE_LABEL[b.who as VoiceId]}: "${b.text}"`);
+    const doors = new Set(beats.map((b) => b.visitorName)).size;
 
     return [
-      `Cover Story — ${level.brief}`,
+      `Cover Story — ${doors} ${doors === 1 ? "visitor" : "visitors"}, one night`,
       result === "won"
-        ? `Talked them off the step with the meter at ${suspicion}.`
+        ? "Talked every one of them off the step."
         : `Got caught. The meter hit ${suspicion}.`,
       "",
       ...said,
     ].join("\n");
-  }, [beats, level, result, suspicion]);
+  }, [beats, result, suspicion]);
 
   const share = useCallback(async () => {
     const text = summary();
@@ -180,9 +194,11 @@ export default function Replay({
           const insideMs = (now - beat.startSec) * 1000;
 
           return (
-            <div key={beat.id} className={`beat ${beat.who === "visitor" ? "them" : "us"} ${live ? "live" : ""}`}>
+            <div key={beat.id}>
+              {beat.opensDoor && <p className="door-mark">{beat.opensDoor}</p>}
+              <div className={`beat ${beat.who === "visitor" ? "them" : "us"} ${live ? "live" : ""}`}>
               <span className="who">
-                {beat.who === "visitor" ? level.visitorName : VOICE_LABEL[beat.who as VoiceId]}
+                {beat.who === "visitor" ? beat.visitorName : VOICE_LABEL[beat.who as VoiceId]}
                 {beat.fromExcuseSlot !== null && <em> · prepared</em>}
               </span>
               <p className="words">
@@ -197,6 +213,7 @@ export default function Replay({
                     ))
                   : beat.text}
               </p>
+              </div>
             </div>
           );
         })}

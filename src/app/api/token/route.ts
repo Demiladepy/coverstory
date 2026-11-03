@@ -17,11 +17,11 @@ const WINDOW_MS = 60 * 60 * 1000;
 const runs = new Map<string, number[]>();
 
 function maxRunsPerHour(): number {
-  return Number(process.env.MAX_RUNS_PER_BROWSER_PER_HOUR ?? 6);
+  return Number(process.env.MAX_RUNS_PER_BROWSER_PER_HOUR ?? 3);
 }
 
 function maxRunSeconds(): number {
-  return Number(process.env.MAX_RUN_SECONDS ?? 420);
+  return Number(process.env.MAX_RUN_SECONDS ?? 1200);
 }
 
 function browserId(req: Request): string {

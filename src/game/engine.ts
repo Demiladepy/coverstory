@@ -1,9 +1,16 @@
 /**
  * The core loop.
  *
- * One encounter, start to finish: the visitor speaks, the player holds a key
- * and answers, the answer comes back out of the house in a grown-up's voice,
- * and the visitor responds to what was actually said.
+ * A run is a night: several visitors in order, each one an encounter from the
+ * knock to the door closing. The visitor speaks, the player holds a key and
+ * answers, the answer comes back out of the house in a grown-up's voice, and
+ * the visitor responds to what was actually said.
+ *
+ * What carries between encounters is the only thing that should: the claims.
+ * Each visitor is a different person, so each gets a conversation of their own
+ * and their own starting wariness — but everything an adult of this house has
+ * ever said out loud stays on the record, and the thing you told the pizza
+ * driver at eight is still true, or isn't, when the relatives arrive.
  *
  * The engine owns the hardware and the sockets and emits GameEvents. It knows
  * nothing about pixels — everything the player sees is a reduction over the
@@ -67,10 +74,12 @@ type Line = {
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, Math.max(0, ms)));
 
 export function createEngine(opts: {
-  level: LevelId;
+  /** the doors of this night, in order */
+  levels: LevelId[];
   onEvent: (event: GameEvent) => void;
 }): Engine {
-  const level = LEVEL_BY_ID[opts.level];
+  let levelIndex = 0;
+  let level = LEVEL_BY_ID[opts.levels[0]];
   const runStart = performance.now();
   /** ms since the run began — every event is stamped on this one clock */
   const at = () => Math.round(performance.now() - runStart);
@@ -93,7 +102,10 @@ export function createEngine(opts: {
   let turnsSurvived = 0;
   let lines = 0;
   let suspicion = level.startSuspicion;
+  /** this encounter is finished, one way or the other */
   let over = false;
+  /** the whole night is finished */
+  let runOver = false;
 
   /** who the visitor last asked for, and what they last said */
   let askedFor: VoiceId | null = null;
@@ -104,8 +116,16 @@ export function createEngine(opts: {
 
   /** words from turns the model closed by itself, mid-hold */
   const carried = { text: "", words: [] as SttWord[] };
-  const history: { speaker: Speaker; text: string }[] = [];
-  /** everything an adult has claimed out loud — what contradiction is judged against */
+  /** this visitor's conversation — a new one at every door */
+  let history: { speaker: Speaker; text: string }[] = [];
+  /**
+   * Everything an adult of this house has claimed out loud, all night.
+   *
+   * This is the only thing that crosses a doorstep. A new visitor has not
+   * heard the last conversation, so the history resets; but the house has
+   * still said what it said, and that is what contradiction is judged
+   * against.
+   */
   const claims: Claim[] = [];
 
   /** the three prepared lines, and which of them have been spent */
@@ -188,27 +208,83 @@ export function createEngine(opts: {
     });
 
     if (suspicion >= CAUGHT_AT) {
-      over = true;
-      clearDeadAir();
-      closeEars();
-      emit({
-        type: "level_end",
-        level: level.id,
-        result: "caught",
-        suspicion,
-        elapsedMs: at(),
-        at: at(),
-      });
+      void endLevel("caught");
       return true;
     }
     return false;
   }
 
+  /** A new door: fresh everything except what the house has already said. */
+  function beginLevel() {
+    level = LEVEL_BY_ID[opts.levels[levelIndex]];
+    suspicion = level.startSuspicion;
+    turnsSurvived = 0;
+    excuses = [];
+    spent.clear();
+    askedFor = null;
+    visitorSaid = "";
+    history = [];
+    carried.text = "";
+    carried.words.length = 0;
+    over = false;
+
+    emit({
+      type: "prep_start",
+      level: level.id,
+      slots: EXCUSE_SLOTS,
+      secondsAllowed: PREP_SECONDS,
+      at: at(),
+    });
+  }
+
   /**
-   * Shut the transcript down the moment the encounter is over.
+   * The door closes, and either the next one is ahead or the night is over.
+   *
+   * Being caught ends the night wherever it happens: there is no carrying on
+   * once somebody has stopped believing you.
+   */
+  async function endLevel(result: "won" | "caught") {
+    over = true;
+    canSpeak = false;
+    clearDeadAir();
+
+    emit({
+      type: "level_end",
+      level: level.id,
+      result,
+      suspicion,
+      elapsedMs: at(),
+      at: at(),
+    });
+
+    const lastDoor = levelIndex >= opts.levels.length - 1;
+    if (result === "caught" || lastDoor) {
+      runOver = true;
+      closeEars();
+      emit({
+        type: "run_end",
+        result,
+        levelsCleared: result === "won" ? opts.levels.length : levelIndex,
+        at: at(),
+      });
+      return;
+    }
+
+    // A beat to read what happened before the next one knocks.
+    await sleep(2200);
+    if (stopped || runOver) return;
+    levelIndex += 1;
+    beginLevel();
+  }
+
+  /**
+   * Shut the transcript down the moment the night is over.
    *
    * A streaming session bills for as long as its socket is open, and the end
    * screen can sit there for minutes while someone listens back to the tape.
+   * It stays open between doors, though: one socket for the night costs a
+   * little idle time during prep and saves minting a token at every door,
+   * which is what the run budget actually counts.
    */
   function closeEars() {
     stt?.terminate();
@@ -381,17 +457,7 @@ export function createEngine(opts: {
     if (applyScore(score(line.contradiction))) return;
 
     if (turnsSurvived >= level.turnsToWin) {
-      over = true;
-      clearDeadAir();
-      closeEars();
-      emit({
-        type: "level_end",
-        level: level.id,
-        result: "won",
-        suspicion,
-        elapsedMs: at(),
-        at: at(),
-      });
+      void endLevel("won");
       return;
     }
 
@@ -449,13 +515,7 @@ export function createEngine(opts: {
         return;
       }
 
-      emit({
-        type: "prep_start",
-        level: level.id,
-        slots: EXCUSE_SLOTS,
-        secondsAllowed: PREP_SECONDS,
-        at: at(),
-      });
+      beginLevel();
 
       // Everything else opens behind the prep screen. The microphone prompt,
       // a token, the transcript socket and waking the model together cost
@@ -518,13 +578,12 @@ export function createEngine(opts: {
       }
       if (stopped) return;
 
-      // The transcript socket opens here rather than behind the prep screen,
-      // because a streaming session is capped and billed from the moment it
-      // opens. Opened during prep, up to forty-five seconds of that budget
-      // would be spent watching someone type. Opening it costs well under a
-      // second and the visitor's opening line is about to play over it.
+      // The transcript socket opens at the first door rather than behind the
+      // prep screen, because a streaming session is capped and billed from the
+      // moment it opens, and prep would spend that budget watching somebody
+      // type. It then stays open for the rest of the night.
       try {
-        stt = await openStt({
+        if (!stt) stt = await openStt({
           token: sttToken,
           onPartial: (partial) =>
             emit({ type: "mic_state", state: "listening", partial, at: at() }),
@@ -535,7 +594,7 @@ export function createEngine(opts: {
             // ForceEndpoint both no-op on a closed socket, so the player holds
             // a key, talks, lets go, and nothing ever answers. Saying so is
             // worse than it working and far better than pretending.
-            if (over || stopped) return;
+            if (runOver || stopped) return;
             fail("stt_lost", "The line went dead. The house cannot hear you any more.", false);
           },
         });
