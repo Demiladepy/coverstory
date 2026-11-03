@@ -56,6 +56,26 @@ function who(voice: string): string {
   return VOICE_LABEL[voice as VoiceId] ?? "someone";
 }
 
+/**
+ * A grown-up saying they don't know is not a grown-up contradicting themselves.
+ *
+ * Both false positives seen in testing were this exact shape: "honestly I
+ * couldn't tell you where she is" scored as a clash with "she is at work until
+ * nine". It is a fair thing for a model to find odd and a wrong thing to
+ * punish, because an admission of ignorance asserts nothing for an earlier
+ * statement to collide with.
+ *
+ * Deciding that needs no model at all, so it does not get one. Same principle
+ * as the rest of the meter: the code scores everything it can see for itself,
+ * and only the genuinely semantic question goes out to be judged.
+ */
+const CLAIMS_NOTHING =
+  /\b(i (really |honestly )?(don'?t|do not) know|no idea|not sure|couldn'?t tell you|can'?t (say|tell you)|who knows|hard to say|not certain|haven'?t (a clue|the faintest))\b/i;
+
+function claimsNothing(text: string): boolean {
+  return CLAIMS_NOTHING.test(text);
+}
+
 export async function POST(req: Request) {
   let body: Body;
   try {
@@ -78,10 +98,17 @@ export async function POST(req: Request) {
 
   const claims = (body.claims ?? []).slice(-8);
 
-  const [line, judgement] = await Promise.all([
+  const [line, clash] = await Promise.all([
     writeLine(body, level, claims).catch(() => null),
     judge(claims).catch(() => null),
   ]);
+
+  // The model is not the last word. A statement that claims nothing cannot
+  // contradict anything, and that is decidable here without asking anyone.
+  const newest = claims[claims.length - 1]?.text ?? "";
+  const judgement = clash
+    ? { found: clash.found && !claimsNothing(newest), detail: clash.detail }
+    : null;
 
   if (!line) {
     const text = PROD[Math.min(body.history.length >> 1, PROD.length - 1)];
@@ -200,3 +227,4 @@ async function judge(claims: { voice: string; text: string }[]) {
   const found = Boolean(verdict?.contradicts);
   return { found, detail: found ? verdict?.what?.trim() : undefined };
 }
+

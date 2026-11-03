@@ -31,24 +31,55 @@ function browserId(req: Request): string {
   return crypto.randomUUID();
 }
 
-function spend(id: string): { ok: boolean; remaining: number } {
-  const now = Date.now();
-  const recent = (runs.get(id) ?? []).filter((t) => now - t < WINDOW_MS);
-  const limit = maxRunsPerHour();
+/** The caller's address, as the platform reports it. */
+function caller(req: Request): string {
+  const forwarded = req.headers.get("x-forwarded-for") ?? "";
+  return forwarded.split(",")[0]?.trim() || "unknown";
+}
 
-  if (recent.length >= limit) {
-    runs.set(id, recent);
+function since(key: string): number[] {
+  const now = Date.now();
+  return (runs.get(key) ?? []).filter((t) => now - t < WINDOW_MS);
+}
+
+/**
+ * Spend one run against every bucket at once, and only if all of them have
+ * room.
+ *
+ * Counting the cookie alone was not a guard at all: no cookie meant a fresh
+ * identity, so anything that simply declined to keep cookies had no limit.
+ * The address is the bucket that cannot be thrown away.
+ *
+ * Its allowance is deliberately several times the per-browser one, because the
+ * one place this link is most likely to be opened by several people at once —
+ * a room full of people on the same wifi — is exactly the place where locking
+ * them out would be worst.
+ */
+function spend(buckets: { key: string; limit: number }[]): { ok: boolean; remaining: number } {
+  const lists = buckets.map((b) => ({ ...b, list: since(b.key) }));
+
+  if (lists.some((b) => b.list.length >= b.limit)) {
+    for (const b of lists) runs.set(b.key, b.list);
     return { ok: false, remaining: 0 };
   }
 
-  recent.push(now);
-  runs.set(id, recent);
-  return { ok: true, remaining: limit - recent.length };
+  const now = Date.now();
+  let remaining = Number.POSITIVE_INFINITY;
+  for (const b of lists) {
+    b.list.push(now);
+    runs.set(b.key, b.list);
+    remaining = Math.min(remaining, b.limit - b.list.length);
+  }
+  return { ok: true, remaining };
 }
 
 export async function POST(req: Request) {
   const id = browserId(req);
-  const budget = spend(id);
+  const limit = maxRunsPerHour();
+  const budget = spend([
+    { key: `browser:${id}`, limit },
+    { key: `caller:${caller(req)}`, limit: limit * 5 },
+  ]);
 
   if (!budget.ok) {
     return NextResponse.json(
