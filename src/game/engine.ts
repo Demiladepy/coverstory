@@ -27,6 +27,7 @@ import { speakLine, type SpokenLine } from "@/lib/speak";
 import { GROWNUP_BY_ID } from "@/game/voices";
 import { LEVEL_BY_ID } from "@/game/levels";
 import { shapeForSpeech } from "@/game/shout";
+import { knock, meterMoved } from "@/lib/sfx";
 import {
   CAUGHT_AT,
   DEAD_AIR_GRACE_MS,
@@ -151,6 +152,7 @@ export function createEngine(opts: {
       timings: spoken.timings,
       durationMs: spoken.durationMs,
       addressedTo: line.addressedTo,
+      playbackOffsetMs: Math.max(0, (ctx!.currentTime - spoken.startedAt) * 1000),
       at: at(),
     });
     history.push({ speaker: "visitor", text: line.text });
@@ -169,6 +171,7 @@ export function createEngine(opts: {
   function applyScore(scored: Scored): boolean {
     if (over) return true;
     suspicion = Math.max(0, Math.min(CAUGHT_AT, suspicion + scored.delta));
+    if (ctx) meterMoved(ctx, scored.delta);
     emit({
       type: "suspicion",
       value: suspicion,
@@ -503,6 +506,9 @@ export function createEngine(opts: {
         fail("stt_lost", err instanceof Error ? err.message : "could not listen", false);
         return;
       }
+
+      // Before anything else: the thing the whole game is named after.
+      if (ctx) knock(ctx);
 
       emit({
         type: "level_start",

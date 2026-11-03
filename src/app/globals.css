@@ -781,3 +781,55 @@ label.pick {
     padding: 20px 16px;
   }
 }
+
+/* The line arrives as it is spoken, rather than all at once. Words ahead of
+   the voice sit back; the one being said now is the brightest thing outside.
+   Still cold — the lamp belongs to the house, not to the street. */
+.saidoutside .w {
+  transition:
+    opacity 140ms ease,
+    color 140ms ease;
+}
+
+.saidoutside .w.coming {
+  opacity: 0.26;
+}
+
+.saidoutside .w.said {
+  opacity: 1;
+}
+
+.saidoutside .w.lit {
+  opacity: 1;
+  color: #f2f6fb;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .saidoutside .w {
+    transition: none;
+  }
+}
+
+/* Small, out of the way, and still reachable — the game knocks and thuds, so
+   there has to be a way to stop it. */
+.hush {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  padding: 5px 9px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cold-dim);
+  font-family: var(--chrome);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.hush:hover {
+  border-color: #272c38;
+  color: var(--cold);
+}

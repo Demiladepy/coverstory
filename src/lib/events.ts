@@ -95,6 +95,15 @@ export type GameEvent =
       durationMs: number;
       /** the visitor is addressing a specific adult, or nobody in particular */
       addressedTo: VoiceId | null;
+      /**
+       * How far into the clip its audio already is when this event lands.
+       *
+       * The word timings only arrive once the whole response has been read,
+       * by which point the voice has been talking for a moment. Without this
+       * the captions would start from the top while the ear is already three
+       * words in, and the lit word would trail the voice for the whole line.
+       */
+      playbackOffsetMs: number;
       at: number;
     }
   /** The player held a key and spoke; this is the line as the house heard it. */

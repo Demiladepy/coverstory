@@ -35,8 +35,12 @@ import {
   type LevelId,
   type RunLog,
   type VoiceId,
+  type WordTiming,
 } from "@/lib/events";
+import { setMuted } from "@/lib/sfx";
 import Replay from "./Replay";
+
+type Speech = { timings: WordTiming[]; durationMs: number; anchor: number };
 
 type Phase = "ready" | "prep" | "opening" | "playing" | "over" | "failed";
 
@@ -61,6 +65,9 @@ export default function Play() {
   const [phase, setPhase] = useState<Phase>("ready");
   const [visitorLine, setVisitorLine] = useState("");
   const [addressedTo, setAddressedTo] = useState<VoiceId | null>(null);
+  const [speech, setSpeech] = useState<Speech | null>(null);
+  const [intoClip, setIntoClip] = useState(-1);
+  const [hushed, setHushed] = useState(false);
   const [spokenText, setSpokenText] = useState("");
   const [micState, setMicState] = useState<"idle" | "listening" | "finalising">("idle");
   const [partial, setPartial] = useState("");
@@ -93,6 +100,14 @@ export default function Play() {
       case "visitor_line":
         setVisitorLine(event.text);
         setAddressedTo(event.addressedTo);
+        // Anchored to when the clip actually started, not to now: the timings
+        // arrive once the response has been read, by which point the voice is
+        // already a word or two in.
+        setSpeech({
+          timings: event.timings,
+          durationMs: event.durationMs,
+          anchor: performance.now() - event.playbackOffsetMs,
+        });
         break;
       case "player_line": {
         setSpokenText(event.spokenText);
@@ -154,7 +169,50 @@ export default function Play() {
     setRecording(null);
   }, [levelId]);
 
+  // Remembered per browser, and harmless if storage is unavailable.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("cs_hush") === "1";
+      setHushed(saved);
+      setMuted(saved);
+    } catch {
+      // private window, blocked storage: sound simply stays on
+    }
+  }, []);
+
+  const toggleHush = useCallback(() => {
+    setHushed((was) => {
+      const now = !was;
+      setMuted(now);
+      try {
+        localStorage.setItem("cs_hush", now ? "1" : "0");
+      } catch {
+        // nothing to do; the setting just will not survive a reload
+      }
+      return now;
+    });
+  }, []);
+
   useEffect(() => () => engine.current?.stop(), []);
+
+  // Follow the voice through the line, so the words arrive as they are said
+  // rather than all at once. The timings came back with the audio; this is the
+  // only place they are used live rather than in the replay.
+  useEffect(() => {
+    if (!speech || speech.timings.length === 0) return;
+    let frame = 0;
+    const follow = () => {
+      const into = performance.now() - speech.anchor;
+      if (into > speech.durationMs + 150) {
+        setIntoClip(-1);
+        return;
+      }
+      setIntoClip(into);
+      frame = requestAnimationFrame(follow);
+    };
+    frame = requestAnimationFrame(follow);
+    return () => cancelAnimationFrame(frame);
+  }, [speech]);
 
   // The reasons are a reaction, not a readout. They say why the meter moved
   // and then get out of the way, so the door is not permanently annotated.
@@ -402,10 +460,32 @@ export default function Play() {
   return (
     <main className="night">
       <section className="outside">
+        <button className="hush" onClick={toggleHush}>
+          {hushed ? "sound off" : "sound on"}
+        </button>
+
         <div className="whoisit">
           {level.brief} &nbsp;·&nbsp; <b>{level.visitorName}</b>
         </div>
-        <p className="saidoutside">{visitorLine || " "}</p>
+        <p className="saidoutside">
+          {speech && speech.timings.length > 0 ? (
+            speech.timings.map((word, i) => {
+              const state =
+                intoClip < 0 || intoClip > word.end
+                  ? "said"
+                  : intoClip >= word.start
+                    ? "lit"
+                    : "coming";
+              return (
+                <span key={`${i}-${word.text}`} className={`w ${state}`}>
+                  {word.text}{" "}
+                </span>
+              );
+            })
+          ) : (
+            visitorLine || " "
+          )}
+        </p>
         {addressedTo && <div className="asking">asking for {VOICE_LABEL[addressedTo]}</div>}
       </section>
 
