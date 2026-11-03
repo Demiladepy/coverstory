@@ -166,10 +166,10 @@ export default function Replay({
   if (beats.length === 0) return null;
 
   return (
-    <div className="panel">
-      <div className="row" style={{ justifyContent: "space-between", marginBottom: 12 }}>
-        <h2 style={{ margin: 0 }}>The tape</h2>
-        <span className="mono faint">
+    <div style={{ marginTop: 26 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+        <p className="title">The tape</p>
+        <span className="clock">
           {Math.round(beats[beats.length - 1].endSec)}s · {beats.length} lines
         </span>
       </div>
@@ -202,12 +202,16 @@ export default function Replay({
         })}
       </div>
 
-      <div className="row" style={{ marginTop: 16 }}>
-        <button className="primary" onClick={playing ? stop : play}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button className="go" onClick={playing ? stop : play}>
           {playing ? "Stop" : "Play it back"}
         </button>
-        <button onClick={download}>Download the tape</button>
-        <button onClick={() => void share()}>{copied ? "Copied" : "Share"}</button>
+        <button className="quiet" onClick={download}>
+          Download the tape
+        </button>
+        <button className="quiet" onClick={() => void share()}>
+          {copied ? "Copied" : "Share"}
+        </button>
       </div>
     </div>
   );

@@ -154,182 +154,630 @@ label.pick {
   background: #2a1512;
 }
 
-/* ---- the encounter ---------------------------------------------------- */
 
-.meter {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--panel-2);
-  border: 1px solid var(--line);
+/* =======================================================================
+   The encounter.
+
+   Reference: Papers, Please. The lesson there is not the pixel art — it is
+   that the interface *is* the workplace. There is no dashboard reporting
+   your state; there is a booth, a desk and a stamp, all on one cramped
+   screen with nowhere to look away to. The stress is the layout.
+
+   So this is not panels about a door. It is a door. Three zones on one
+   screen, no scrolling: what is beyond the door, the door itself, and your
+   own side of it.
+
+   Colour has three jobs here and they never swap:
+     --night / --cold   everything outside: the visitor, their voice, the dark
+     --lamp             light from inside the house: your keys, your words.
+                        Never a page background, never decoration.
+     --alarm            suspicion, and nothing else.
+   ======================================================================= */
+
+:root {
+  --night: #07080b;
+  --cold: #8f9bab;
+  --cold-dim: #5a6472;
+  --slab: #101218;
+  --slab-edge: #1d212b;
+  --lamp: #f0b44c;
+  --lamp-deep: #b67c22;
+  --chrome: var(--sans);
+}
+
+.night {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--night);
+  color: var(--cold);
   overflow: hidden;
 }
 
-.meter-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--good), var(--warm) 60%, var(--alarm));
-  transition: width 420ms cubic-bezier(0.2, 0.7, 0.3, 1);
+/* ---- beyond the door -------------------------------------------------- */
+
+.outside {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 14px;
+  padding: 24px 20px;
+  position: relative;
+  /* The street is darker at its edges than at the door. */
+  background: radial-gradient(120% 90% at 50% 100%, #0d0f15 0%, var(--night) 70%);
 }
 
-.scene .who {
-  font-family: var(--mono);
-  font-size: 12px;
-  letter-spacing: 0.04em;
+.whoisit {
+  font-family: var(--chrome);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
-  color: var(--ink-dim);
-  margin-bottom: 10px;
+  color: var(--cold-dim);
 }
 
-/* Spoken lines are the thing being read, so they get room and a serif-ish
-   rhythm rather than the interface's own voice. */
-.said {
+.whoisit b {
+  color: var(--cold);
+  font-weight: 600;
+}
+
+/* Their voice arrives through a door, so it is never quite as present as
+   yours: cooler, a little further off, and it never touches the lamp. */
+.saidoutside {
   margin: 0;
-  font-size: 20px;
-  line-height: 1.5;
-  max-width: 46ch;
+  max-width: 26ch;
+  font-size: clamp(20px, 4.2vw, 31px);
+  line-height: 1.32;
+  letter-spacing: -0.01em;
+  color: #cfd6e0;
+  text-wrap: balance;
 }
 
-.voicekey {
+.asking {
+  font-family: var(--chrome);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--lamp-deep);
+}
+
+/* ---- the door --------------------------------------------------------- */
+
+.door {
+  flex: 0 0 auto;
+  position: relative;
+  background: linear-gradient(180deg, var(--slab-edge) 0%, var(--slab) 14%, #0c0e13 100%);
+  border-top: 1px solid #262b36;
+  padding: 16px 20px 42px;
+  min-height: 104px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+}
+
+.doorstate {
+  font-family: var(--chrome);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--cold-dim);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.doorstate .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cold-dim);
+}
+
+.door.live .doorstate {
+  color: var(--lamp);
+}
+
+.door.live .doorstate .dot {
+  background: var(--lamp);
+  animation: breathe 1.1s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+/* What the house is hearing, as it hears it. */
+.heard {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: clamp(15px, 3vw, 19px);
+  line-height: 1.4;
+  color: var(--lamp);
+  text-wrap: pretty;
+}
+
+/* The meter is the light under the door. It widens as they lean in, and
+   turns from the hallway lamp into something else. */
+.underlight {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: var(--lamp);
+  box-shadow: 0 -2px 14px 0 rgba(240, 180, 76, 0.3);
+  transition:
+    height 520ms cubic-bezier(0.2, 0.7, 0.3, 1),
+    background-color 520ms ease,
+    box-shadow 520ms ease;
+}
+
+.underlight.hot {
+  background: var(--alarm);
+  box-shadow: 0 -2px 22px 1px rgba(217, 84, 77, 0.45);
+}
+
+.pressure {
+  position: absolute;
+  right: max(20px, calc((100% - 900px) / 2));
+  bottom: 18px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--chrome);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--cold-dim);
+}
+
+.pressure .word {
+  font-size: 9px;
+  letter-spacing: 0.2em;
+}
+
+.pressure b {
+  color: var(--cold);
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.pressure.hot b {
+  color: var(--alarm);
+}
+
+/* Why it moved, said once and briefly, along the foot of the door. */
+.ticks {
+  position: absolute;
+  left: max(20px, calc((100% - 900px) / 2));
+  bottom: 20px;
+  display: flex;
+  gap: 8px;
+  font-family: var(--chrome);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  max-width: 60%;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.ticks .up {
+  color: var(--alarm);
+}
+
+.ticks .down {
+  color: var(--lamp-deep);
+}
+
+/* The door and the keys span the whole wall, but their contents sit in one
+   readable column so a wide screen does not stretch them into a strip. */
+.doorstate,
+.heard,
+.keys,
+.notes {
+  width: min(900px, 100%);
+  margin-inline: auto;
+}
+
+/* ---- your side -------------------------------------------------------- */
+
+.inside {
+  flex: 0 0 auto;
+  padding: 16px 20px 20px;
+  background: var(--night);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.keys {
+  display: flex;
+  gap: 10px;
+}
+
+/* Chunky, physical, lit from inside — the only things on screen that are
+   yours. The bottom border is thicker so a held key can sink into it. */
+.vkey {
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 3px;
-  padding: 12px 14px;
-  min-width: 170px;
+  gap: 2px;
+  padding: 13px 14px;
+  border: 1px solid #272c38;
+  border-bottom-width: 3px;
+  border-radius: 9px;
+  background: #12141b;
+  color: var(--cold);
+  font-family: var(--chrome);
   text-align: left;
-  /* A key being held should feel pressed, not merely coloured. */
-  transition: transform 90ms ease, border-color 120ms ease;
+  cursor: pointer;
   touch-action: none;
+  transition:
+    transform 70ms ease,
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 
-.voicekey.on { transform: translateY(1px); }
+.vkey:disabled {
+  opacity: 0.38;
+  cursor: not-allowed;
+}
 
-.voicekey .key {
-  font-family: var(--mono);
+.vkey .num {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  color: var(--cold-dim);
+}
+
+.vkey .name {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #d7dde6;
+}
+
+.vkey .note {
   font-size: 11px;
-  color: var(--ink-faint);
+  color: var(--cold-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
-.voicekey.on .key { color: var(--warm-deep); }
+.vkey.down {
+  transform: translateY(2px);
+  border-bottom-width: 1px;
+  border-color: var(--lamp-deep);
+  background: #1b1710;
+}
 
-.talk { margin-bottom: 16px; }
+.vkey.down .num,
+.vkey.down .name {
+  color: var(--lamp);
+}
 
-/* Why the meter moved. Shown next to it, because a meter that climbs without
-   saying what you did is a meter you cannot learn to play against. */
-.tick {
-  display: inline-flex;
+/* Three scraps left by the phone. */
+.notes {
+  display: flex;
+  gap: 8px;
+}
+
+.note {
+  flex: 1;
+  min-width: 0;
+  display: flex;
   align-items: baseline;
-  gap: 6px;
-  padding: 4px 9px;
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--panel-2);
+  gap: 7px;
+  padding: 8px 10px;
+  border: 1px dashed #2b313d;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--cold-dim);
+  font-family: var(--chrome);
   font-size: 12px;
+  text-align: left;
+  cursor: pointer;
 }
 
-.tick b { font-family: var(--mono); font-size: 11px; }
-.tick em { font-style: normal; color: var(--ink-faint); font-size: 11px; }
-.tick.up { border-color: rgba(217, 84, 77, 0.45); }
-.tick.up b { color: var(--alarm); }
-.tick.down { border-color: rgba(95, 184, 122, 0.4); }
-.tick.down b { color: var(--good); }
+.note:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
 
-/* ---- prep: three lines on three keys ---------------------------------- */
+.note .num {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
 
-.slot {
+.note .txt {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Spent, not gone — a used line can still be fired, it just costs. */
+.note.used .txt {
+  text-decoration: line-through;
+  opacity: 0.55;
+}
+
+/* ---- prep, and the screens either side of the encounter ---------------- */
+
+.card {
+  margin: auto;
+  width: min(560px, 100%);
+  padding: 26px 24px;
+}
+
+.title {
+  font-family: var(--chrome);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cold-dim);
+  margin: 0 0 14px;
+}
+
+.lede {
+  margin: 0 0 20px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--cold);
+  max-width: 48ch;
+  text-wrap: pretty;
+}
+
+.big-line {
+  margin: 0 0 10px;
+  font-size: clamp(24px, 5vw, 34px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #e6ebf2;
+  text-wrap: balance;
+}
+
+.clock {
+  font-family: var(--chrome);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: var(--cold-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.clock.soon {
+  color: var(--alarm);
+}
+
+.noteline {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin-bottom: 8px;
+  gap: 9px;
+  margin-bottom: 9px;
 }
 
-.slot .key {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--ink-faint);
-  width: 16px;
+.noteline .num {
+  font-family: var(--chrome);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cold-dim);
+  width: 12px;
   flex: none;
 }
 
-.slot .line {
+.noteline input {
   flex: 1;
   min-width: 0;
-  padding: 9px 11px;
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--panel-2);
-  color: var(--ink);
+  padding: 10px 12px;
+  border: 1px solid #272c38;
+  border-radius: 8px;
+  background: #0d0f14;
+  color: #e6ebf2;
   font-family: var(--sans);
   font-size: 14px;
 }
 
-.slot .line:focus { outline: none; border-color: var(--warm-deep); }
-.slot .line::placeholder { color: var(--ink-faint); }
-
-.pill { padding: 6px 10px; font-size: 12px; }
-
-/* The rail sits under the voice keys during play: what is parked on 7, 8, 9
-   and which of them the visitor has already heard. */
-.rail {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin-bottom: 16px;
+.noteline input:focus {
+  outline: none;
+  border-color: var(--lamp-deep);
 }
 
-.excuse {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-  width: 100%;
-  text-align: left;
-  padding: 9px 12px;
-  font-size: 13px;
+.noteline input::placeholder {
+  color: #434b59;
 }
 
-.excuse .key { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
-.excuse .line { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.excuse .faint { font-size: 11px; }
+.pick {
+  display: flex;
+  gap: 3px;
+  flex: none;
+}
 
-/* Spent, not gone. A used line can still be fired — it just costs. */
-.excuse.spent .line { text-decoration: line-through; color: var(--ink-faint); }
+.pick button {
+  padding: 7px 9px;
+  border: 1px solid #272c38;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--cold-dim);
+  font-family: var(--chrome);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.pick button.on {
+  border-color: var(--lamp-deep);
+  color: var(--lamp);
+  background: #1b1710;
+}
+
+.go {
+  padding: 11px 18px;
+  border: 1px solid var(--lamp-deep);
+  border-radius: 8px;
+  background: var(--lamp);
+  color: #1a1206;
+  font-family: var(--chrome);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.go:hover {
+  background: #ffc766;
+}
+
+.quiet {
+  padding: 11px 16px;
+  border: 1px solid #272c38;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cold);
+  font-family: var(--chrome);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.quiet:hover {
+  border-color: var(--cold-dim);
+}
+
+.scroller {
+  overflow-y: auto;
+}
+
+.trouble {
+  margin: 0 0 16px;
+  padding: 11px 14px;
+  border-left: 2px solid var(--alarm);
+  background: #1a0f0e;
+  color: #ffd9d5;
+  font-size: 14px;
+  line-height: 1.5;
+}
 
 /* ---- the tape --------------------------------------------------------- */
 
-.tape { display: flex; flex-direction: column; gap: 10px; }
-
-.beat {
-  padding: 10px 13px;
-  border-radius: var(--radius);
-  border: 1px solid transparent;
-  background: var(--panel-2);
-  max-width: 46ch;
-  /* Dim until it is the line being spoken, so the eye follows the audio. */
-  opacity: 0.55;
-  transition: opacity 160ms ease, border-color 160ms ease;
+.tape {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin-bottom: 18px;
 }
 
-.beat.live { opacity: 1; border-color: var(--line); }
+.beat {
+  padding: 9px 12px;
+  border-radius: 8px;
+  max-width: 44ch;
+  opacity: 0.45;
+  transition: opacity 160ms ease;
+}
 
-/* The visitor is outside; the house answers from the other side. */
-.beat.them { align-self: flex-start; }
-.beat.us { align-self: flex-end; background: var(--panel); border-color: var(--line); }
+.beat.live {
+  opacity: 1;
+}
+
+.beat.them {
+  align-self: flex-start;
+  background: #0f1218;
+}
+
+.beat.us {
+  align-self: flex-end;
+  background: #16130d;
+}
 
 .beat .who {
   display: block;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  letter-spacing: 0.05em;
+  font-family: var(--chrome);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--ink-faint);
-  margin-bottom: 5px;
+  color: var(--cold-dim);
+  margin-bottom: 4px;
 }
 
-.beat .who em { font-style: normal; color: var(--warm-deep); }
-.beat .words { margin: 0; font-size: 15px; line-height: 1.5; }
+.beat.us .who {
+  color: var(--lamp-deep);
+}
 
-/* The word being said right now. This is what the word boundaries were for. */
+.beat .who em {
+  font-style: normal;
+}
+
+.beat .words {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: #cfd6e0;
+}
+
+.beat.us .words {
+  color: #e8dcc4;
+}
+
+/* The word being said right now. This is what the word timings were for. */
 .beat .words .lit {
-  color: var(--warm);
-  background: rgba(232, 176, 75, 0.1);
-  border-radius: 3px;
+  color: var(--lamp);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .door.live .doorstate .dot {
+    animation: none;
+  }
+
+  .underlight,
+  .vkey {
+    transition: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .outside {
+    padding: 18px 16px;
+  }
+
+  .door {
+    padding: 14px 16px 26px;
+  }
+
+  .inside {
+    padding: 12px 16px 16px;
+  }
+
+  .vkey .note {
+    display: none;
+  }
+
+  .notes {
+    flex-direction: column;
+  }
+
+  .card {
+    padding: 20px 16px;
+  }
 }
