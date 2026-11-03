@@ -21,7 +21,7 @@ function maxRunsPerHour(): number {
 }
 
 function maxRunSeconds(): number {
-  return Number(process.env.MAX_RUN_SECONDS ?? 200);
+  return Number(process.env.MAX_RUN_SECONDS ?? 420);
 }
 
 function browserId(req: Request): string {
@@ -62,8 +62,11 @@ export async function POST(req: Request) {
     // client-side timer. A session that outlives the cap keeps billing.
     const cap = maxRunSeconds();
     const [stt, tts] = await Promise.all([
-      mintSttToken(60, Math.max(60, cap)),
-      mintTtsToken(60, Math.max(60, cap)),
+      // Minted while the player is still writing excuses and not used until
+      // they are done, so a token has to outlive the prep phase. The session
+      // cap is what actually bounds a run.
+      mintSttToken(300, Math.max(60, cap)),
+      mintTtsToken(300, Math.max(60, cap)),
     ]);
 
     const res = NextResponse.json({

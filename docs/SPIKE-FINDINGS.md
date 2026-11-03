@@ -370,3 +370,33 @@ The visitor used to repeat its own previous line word for word — the suite
 flags that separately, because a visitor asking the same question twice reads
 as broken long before anyone notices a scoring mistake. One line in the persona
 prompt fixed it.
+
+## The silent hang
+
+A streaming session is capped by the token that opened it, and the socket was
+being opened behind the prep screen — so up to forty-five seconds of a
+two-hundred-second budget was spent watching someone type excuses. The rest
+went on the encounter, and the longest level can run past what was left.
+
+What happened when it ran out was the bad part. Nothing threw. `send()` and
+`ForceEndpoint` both no-op on a closed socket, and the engine never passed an
+`onClose` handler, so the player held a key, spoke, let go — and nothing
+answered, for ever. No error, no meter movement, no visitor. A silent total
+hang, most likely on the Christmas level, which is the one a demo would end on.
+
+Three fixes, and the last is the one that matters:
+
+- The transcript socket now opens when prep ends, not when prep starts, so the
+  session clock begins with the encounter. It costs well under a second and the
+  visitor's opening line plays over it.
+- Tokens are minted during prep and used after it, so they are issued with a
+  lifetime that outlives prep rather than the sixty seconds they had — which
+  was itself close enough to the forty-five-second prep phase to fail on a slow
+  writer.
+- The socket closing is now an event the game notices and reports. It ends the
+  run honestly instead of pretending to listen.
+
+The session cap went to seven minutes, which comfortably covers the longest
+encounter, and the socket is terminated the moment a level ends rather than
+when the player finally leaves the end screen — billing runs on socket time,
+and the end screen is where someone sits and listens to the tape.

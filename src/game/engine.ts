@@ -78,6 +78,7 @@ export function createEngine(opts: {
   let mic: Mic | null = null;
   let stt: SttSession | null = null;
   let ttsToken = "";
+  let sttToken = "";
 
   let stopped = false;
   /** the house is quiet and the player may answer */
@@ -179,6 +180,7 @@ export function createEngine(opts: {
     if (suspicion >= CAUGHT_AT) {
       over = true;
       clearDeadAir();
+      closeEars();
       emit({
         type: "level_end",
         level: level.id,
@@ -190,6 +192,17 @@ export function createEngine(opts: {
       return true;
     }
     return false;
+  }
+
+  /**
+   * Shut the transcript down the moment the encounter is over.
+   *
+   * A streaming session bills for as long as its socket is open, and the end
+   * screen can sit there for minutes while someone listens back to the tape.
+   */
+  function closeEars() {
+    stt?.terminate();
+    stt = null;
   }
 
   function clearDeadAir() {
@@ -344,6 +357,7 @@ export function createEngine(opts: {
     if (turnsSurvived >= level.turnsToWin) {
       over = true;
       clearDeadAir();
+      closeEars();
       emit({
         type: "level_end",
         level: level.id,
@@ -441,14 +455,7 @@ export function createEngine(opts: {
         }
         const tokens = (await res.json()) as { stt: string; tts: string };
         ttsToken = tokens.tts;
-
-        stt = await openStt({
-          token: tokens.stt,
-          onPartial: (partial) =>
-            emit({ type: "mic_state", state: "listening", partial, at: at() }),
-          onTurn: (turn) => void onTurn(turn),
-          onError: (message) => fail("stt_lost", message),
-        });
+        sttToken = tokens.stt;
 
         void fetch("/api/visitor", {
           method: "POST",
@@ -470,6 +477,32 @@ export function createEngine(opts: {
         return; // the failure already went out as an error event
       }
       if (stopped) return;
+
+      // The transcript socket opens here rather than behind the prep screen,
+      // because a streaming session is capped and billed from the moment it
+      // opens. Opened during prep, up to forty-five seconds of that budget
+      // would be spent watching someone type. Opening it costs well under a
+      // second and the visitor's opening line is about to play over it.
+      try {
+        stt = await openStt({
+          token: sttToken,
+          onPartial: (partial) =>
+            emit({ type: "mic_state", state: "listening", partial, at: at() }),
+          onTurn: (turn) => void onTurn(turn),
+          onError: (message) => fail("stt_lost", message),
+          onClose: () => {
+            // Without this the game hangs in total silence: sends and
+            // ForceEndpoint both no-op on a closed socket, so the player holds
+            // a key, talks, lets go, and nothing ever answers. Saying so is
+            // worse than it working and far better than pretending.
+            if (over || stopped) return;
+            fail("stt_lost", "The line went dead. The house cannot hear you any more.", false);
+          },
+        });
+      } catch (err) {
+        fail("stt_lost", err instanceof Error ? err.message : "could not listen", false);
+        return;
+      }
 
       emit({
         type: "level_start",
