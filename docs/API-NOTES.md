@@ -154,6 +154,64 @@ unlike the STT APIs, which take codes.
 API key in `Authorization`. Note this is a **different host and shape** from the
 STT token route. Returns `{ "token": "...", "expires_in_seconds": 60 }`.
 
+## Voice cloning
+
+Read from the live docs on 3 Nov 2026
+(`/docs/tts/cloned-voices.md`, `/docs/tts/voices.md`).
+
+A clone is made from ten to thirty seconds of one person speaking, in the
+language the voice is for. Once made, it is a voice like any other: pass its
+UUID or its slug as `voice_id`.
+
+**There is no API for making one.** Every path in the docs goes through the
+voice catalog in the dashboard, and the voices API documents exactly one verb,
+`DELETE /v1/voices/{voice}`. That is the fact that decides what this feature
+can be used for here: a game cannot offer to clone the player's voice during a
+run. A clone is something recorded once, by hand, whose id is then pasted into
+the code.
+
+Everything else worth knowing before relying on one:
+
+- **Consent is a real mechanism, not a checkbox.** The account must accept the
+  biometric data terms on the dashboard's data controls page, and a clone works
+  for **60 days** from when consent was last given. `voice_expires_at` rides on
+  `Begin`, on `X-TTS-Voice-Expires-At`, and on the SDK results. Past it,
+  sessions are refused with `voice_expired` — and an expired voice **cannot be
+  renewed**, only recreated from a new recording, which gives it a new id.
+  Renew before expiry by setting `extend_biometric_consent: true` on any
+  session or request with the voice; only the owning account may do it.
+- **It is not a built-in voice**, so it loads when a session opens and the
+  first use after a while waits longer for its first audio. The three grown-ups
+  are on the critical path and were cast on measured latency precisely to avoid
+  that.
+- **It is bound to its data zone.** A voice cloned in the US only exists on
+  `tts.us.assemblyai.com`; on the EU host it is `voice_not_found`.
+- Refusals to branch on: `voice_not_found` (3012), `voice_expired` (3012),
+  `voice_blocked` (3012), `voice_not_paired` (3014, right after creation),
+  `not_owner` (3006), `biometric_terms_not_accepted` (3006, or 403 over HTTP).
+- Quality is mostly the recording: close mic, quiet room, uncompressed WAV, and
+  speak in the tone you want back. Raspiness, fillers and hesitations carry
+  into the clone — which is the one thing here that is genuinely interesting
+  for this game.
+
+### Why Cover Story does not use one
+
+The stretch goal in the plan was to clone a teammate as Uncle. It is now
+possible and it is still not worth shipping:
+
+- It cannot be a player-facing feature, because clones cannot be created
+  through the API. It would only ever be three different `voice_id` values in
+  `src/game/voices.ts`.
+- It puts a 60-day expiry on the critical path of a game that has to work on a
+  judging day. `voice_expired` is not retryable and not renewable after the
+  fact; the failure mode is the house losing its voice.
+- The grown-ups were cast on measured time-to-first-audio, and a clone gives
+  that up for a cold start.
+
+The catalog is also much larger than the handful of voices noted above —
+thousands across six languages — so an audition has far more to choose from
+than the six originally shortlisted, at no cost to the design.
+
 ## LLM Gateway
 
 `POST https://llm-gateway.assemblyai.com/v1/chat/completions`,
@@ -181,3 +239,5 @@ Structured outputs are documented under `/docs/llm-gateway/structured-outputs`.
 - https://www.assemblyai.com/docs/tts/voices
 - https://www.assemblyai.com/docs/tts/authenticate-with-a-temporary-token
 - https://www.assemblyai.com/docs/llm-gateway/chat-completions
+- https://www.assemblyai.com/docs/tts/cloned-voices.md
+- https://www.assemblyai.com/docs/tts/voices.md
