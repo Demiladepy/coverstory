@@ -93,11 +93,20 @@ export async function POST(req: Request) {
     // socket is open, idle or not, which the API docs call the commonest cause
     // of a surprise invoice.
     const cap = maxRunSeconds();
+
+    // Both tokens have to outlive the door they are minted for, and the TTS
+    // one is the reason why: it authorises every line the house speaks, over
+    // HTTP, for as long as the door is open. At five minutes it expired before
+    // a door capped at seven could end — so a slow encounter would simply lose
+    // its voice part way through, and every line after that would fail.
+    //
+    // Ten minutes is the documented maximum and comfortably outlasts the cap,
+    // which is what makes this a class of bug rather than a number to tune.
+    // The session cap, not the token's life, is what bounds a door.
+    const usableFor = 600;
     const [stt, tts] = await Promise.all([
-      // Minted while the player is still writing excuses and not used until
-      // they are done, so a token has to outlive the prep phase.
-      mintSttToken(300, Math.max(60, cap)),
-      mintTtsToken(300, Math.max(60, cap)),
+      mintSttToken(usableFor, Math.max(60, cap)),
+      mintTtsToken(usableFor, Math.max(60, cap)),
     ]);
 
     const res = NextResponse.json({

@@ -633,9 +633,14 @@ export function createEngine(opts: {
         }
       }
 
+      // The new session's word times will start from zero, so the loudness
+      // timeline they are read against has to start from zero with it.
+      if (!stt) mic?.reset();
+
       try {
         if (!stt) stt = await openStt({
           token: sttToken,
+          sampleRate: mic?.sampleRate,
           onPartial: (partial) =>
             emit({ type: "mic_state", state: "listening", partial, at: at() }),
           onTurn: (turn) => void onTurn(turn),

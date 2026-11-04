@@ -18,6 +18,12 @@ export type SttTurn = {
 
 export type SttOptions = {
   token: string;
+  /**
+   * The rate the audio is actually at. Not a constant: a browser may hand back
+   * a different rate than the one requested, and the server trusts this number
+   * over the bytes, so a wrong one is heard as speech at the wrong speed.
+   */
+  sampleRate?: number;
   /** omit for the default, universal-3-6-pro */
   speechModel?: "universal-3-6-pro" | "universal-3-5-pro" | "universal-streaming-english";
   /** Universal Streaming only. Ignored by the pro models. */
@@ -42,7 +48,7 @@ export type SttSession = {
 export async function openStt(opts: SttOptions): Promise<SttSession> {
   const params = new URLSearchParams({
     token: opts.token,
-    sample_rate: "16000",
+    sample_rate: String(opts.sampleRate ?? 16000),
     encoding: "pcm_s16le",
   });
   if (opts.speechModel) params.set("speech_model", opts.speechModel);
