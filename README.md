@@ -296,6 +296,13 @@ anything that declines to keep cookies had no limit.
 
 ---
 
+## Watching it
+
+There is a shot list for the demo video in [docs/DEMO.md](docs/DEMO.md),
+including the two things about this game that will quietly ruin a take: the
+live link allows five nights an hour, and the shout cannot be demonstrated on
+the first answer of a run because the game has not heard your voice yet.
+
 ## Running it
 
 ```bash
