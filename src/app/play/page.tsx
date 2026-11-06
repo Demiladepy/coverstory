@@ -81,6 +81,8 @@ export default function Play() {
   const [speech, setSpeech] = useState<Speech | null>(null);
   const [intoClip, setIntoClip] = useState(-1);
   const [hushed, setHushed] = useState(false);
+  /** true once public/cover.jpg has loaded, if there is one */
+  const [art, setArt] = useState(false);
   const [loudness, setLoudness] = useState({ level: 0, baseline: 0.05 });
   const [turnsDone, setTurnsDone] = useState(0);
   const [patience, setPatience] = useState<{ ms: number; anchor: number } | null>(null);
@@ -293,6 +295,15 @@ export default function Play() {
     return () => cancelAnimationFrame(frame);
   }, [house]);
 
+  // Drop a picture at public/cover.jpg and the opening screen becomes it.
+  // Nothing else has to change: if the file is not there the load fails
+  // quietly and the drawn door stays, so this can never break the page.
+  useEffect(() => {
+    const probe = new window.Image();
+    probe.onload = () => setArt(true);
+    probe.src = "/cover.jpg";
+  }, []);
+
   useEffect(() => () => engine.current?.stop(), []);
 
   // Follow the voice through the line, so the words arrive as they are said
@@ -426,7 +437,7 @@ export default function Play() {
 
   if (phase === "ready") {
     return (
-      <main className="night cover">
+      <main className={`night cover ${art ? "has-art" : ""}`}>
         <div className="cover-words">
           {trouble}
           <p className="title">Cover Story</p>

@@ -1573,3 +1573,47 @@ label.pick {
   background: radial-gradient(60% 100% at 50% 50%, rgba(62, 52, 34, 0.9), rgba(16, 18, 23, 0) 78%);
   pointer-events: none;
 }
+
+/* =======================================================================
+   Painted cover.
+
+   CSS can draw a door. It cannot paint one, and the difference is the
+   whole gap between a tidy interface and key art. So the opening screen
+   takes a real picture if there is one: put a file at public/cover.jpg
+   and everything below switches on by itself.
+   ======================================================================= */
+
+.cover.has-art {
+  background-image: url("/cover.jpg");
+  background-size: cover;
+  background-position: center 35%;
+  background-repeat: no-repeat;
+}
+
+/* The drawn door steps aside for the painted one. */
+.cover.has-art .doorway,
+.cover.has-art::before {
+  display: none;
+}
+
+/* A scrim, so the words stay readable over whatever the picture is doing.
+   Dark from the left on wide screens, dark from the bottom on narrow ones,
+   which is where the text sits in each case. */
+.cover.has-art::after {
+  background:
+    linear-gradient(180deg, rgba(5, 6, 9, 0.62) 0%, rgba(5, 6, 9, 0.25) 42%, rgba(5, 6, 9, 0.9) 100%),
+    radial-gradient(118% 88% at 50% 44%, transparent 38%, rgba(0, 0, 0, 0.6) 100%);
+}
+
+@media (min-width: 820px) {
+  .cover.has-art::after {
+    background:
+      linear-gradient(90deg, rgba(5, 6, 9, 0.92) 0%, rgba(5, 6, 9, 0.6) 46%, rgba(5, 6, 9, 0.1) 78%),
+      radial-gradient(118% 88% at 50% 44%, transparent 44%, rgba(0, 0, 0, 0.5) 100%);
+  }
+}
+
+/* Grain over a photograph too: it ties the type to the picture. */
+.cover.has-art .grain {
+  opacity: 0.06;
+}
