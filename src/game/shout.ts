@@ -6,7 +6,7 @@ import type { SttWord } from "@/lib/stt";
  * The transcript gives each word a position on the audio timeline; the mic's
  * loudness track is on that same timeline. So a word can be looked up by when
  * it was said and asked how hard it was said. Words above the player's own
- * normal level come out in CAPS, and the TTS leans on them — measured at 25%
+ * normal level come out in CAPS, and the TTS leans on them, measured at 25%
  * longer on the same sentence, which is the whole joke.
  *
  * The threshold is against the speaker's own baseline rather than an absolute

@@ -5,7 +5,7 @@ import { VISITOR_VOICES } from "@/game/voices";
  * The four encounters.
  *
  * Each one carries its own opening line, written out rather than generated.
- * That is not laziness — it means the level starts the instant the player
+ * That is not laziness, it means the level starts the instant the player
  * presses go, with no model round trip between the door knock and the first
  * voice. Every line after the first is the model's.
  */
@@ -62,10 +62,10 @@ export const LEVELS: Level[] = [
     voiceId: VISITOR_VOICES.neighbour,
     expects: "mom",
     opener:
-      "Sorry to knock so late — I saw the lights on and I haven't seen your mother's car all week. Is she in?",
+      "Sorry to knock so late, I saw the lights on and I haven't seen your mother's car all week. Is she in?",
     persona:
       "The neighbour from next door, middle-aged, warm on the surface and nosy underneath. " +
-      "You ask after people by name. You notice things — cars, bins, curtains — and you mention " +
+      "You ask after people by name. You notice things, cars, bins, curtains, and you mention " +
       "what you noticed. You are not hostile, you are interested, which is worse.",
     turnsToWin: 4,
     startSuspicion: 15,
@@ -94,7 +94,7 @@ export const LEVELS: Level[] = [
     voiceId: VISITOR_VOICES.boss,
     expects: "uncle",
     opener:
-      "We're here! Open up — I've got the cooler, your uncle's right behind me. Where is everybody?",
+      "We're here! Open up, I've got the cooler, your uncle's right behind me. Where is everybody?",
     persona:
       "An aunt arriving for Christmas with a carload of family, loud and delighted and already " +
       "halfway through the door. You address different people by name in the same breath and " +

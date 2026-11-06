@@ -2,7 +2,7 @@
  * The suspicion meter.
  *
  * Everything here is pure: facts in, points out. No model call, no clock, no
- * audio. That is deliberate — a meter you cannot test is a meter you cannot
+ * audio. That is deliberate, a meter you cannot test is a meter you cannot
  * tune, and this one has to be tuned by playing.
  *
  * The split between what is scored here and what is asked of the model comes
@@ -92,7 +92,7 @@ export type TurnFacts = {
   /** what the transcript heard, hesitations and all */
   transcript: string;
   words: SttWord[];
-  /** which grown-up answered — the key that was held */
+  /** which grown-up answered, the key that was held */
   voice: VoiceId;
   /** who the visitor was addressing, if anyone in particular */
   askedFor: VoiceId | null;
@@ -121,7 +121,7 @@ export function scoreTurn(facts: TurnFacts): Scored {
   const confidence = meanConfidence(facts.words);
 
   // Answering in the wrong voice. The visitor asked for someone by name and
-  // somebody else spoke up — the single most obvious way to be caught.
+  // somebody else spoke up, the single most obvious way to be caught.
   if (facts.askedFor && facts.askedFor !== facts.voice) {
     add("wrong_voice", `they were asking for ${facts.askedFor}`);
   }
@@ -138,13 +138,13 @@ export function scoreTurn(facts: TurnFacts): Scored {
   if (tell) {
     add("kid_slip", tell.tell);
   } else if (confidence < 0.55 && facts.words.length >= 3) {
-    // Not a word choice — a voice that wavered enough that the transcript
+    // Not a word choice, a voice that wavered enough that the transcript
     // itself was unsure. A grown-up at their own door does not mumble.
     add("kid_slip", "it came out mumbled");
   }
 
   // Evasion: not answering a question that was actually put to you. A long
-  // pause counts here too — stalling and dodging look the same from the step.
+  // pause counts here too, stalling and dodging look the same from the step.
   const wasAsked = /\?\s*$/.test(facts.visitorSaid.trim());
   if (wasAsked) {
     if (words.length < 3) add("evasive", "barely an answer");
@@ -154,7 +154,7 @@ export function scoreTurn(facts: TurnFacts): Scored {
   }
 
   // Conviction. Few fillers, no long silence, and spoken at or above your own
-  // normal level — the three things that make a stranger believe you.
+  // normal level, the three things that make a stranger believe you.
   //
   // Only awarded when nothing else went wrong. Saying a slip confidently is
   // not a partial save; it is a confident slip, and letting it claw back most
@@ -187,13 +187,12 @@ export type ExcuseFacts = {
  * A prepared line is scored differently, because there is nothing to hear.
  *
  * None of the live signals exist: no fillers, no pauses, no loudness, because
- * the player did not speak. That is exactly the trade the prep phase offers —
- * a canned line is perfectly fluent and arrives instantly, so it cannot give
+ * the player did not speak. That is exactly the trade the prep phase offers, * a canned line is perfectly fluent and arrives instantly, so it cannot give
  * you away the way your own voice can.
  *
  * What it can do is fail to fit. It was written before the question was asked,
  * so it can be the wrong voice, it can contradict what the house already said,
- * and — the one failure unique to it — it can be a line the visitor has already
+ * and, the one failure unique to it, it can be a line the visitor has already
  * heard. Saying the same sentence twice is the most obvious tell there is.
  */
 export function scoreExcuse(facts: ExcuseFacts): Scored {

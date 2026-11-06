@@ -3,12 +3,12 @@
 /**
  * The encounter, on screen.
  *
- * Everything here is a reduction over the engine's event stream — no
+ * Everything here is a reduction over the engine's event stream, no
  * component reaches into the engine to ask it anything. That is what
  * freezing the contract bought: this screen could be thrown away and
  * rebuilt, which is exactly what happened.
  *
- * The layout owes its shape to Papers, Please. Not the pixels — the
+ * The layout owes its shape to Papers, Please. Not the pixels, the
  * structure. That game puts the whole job on one cramped screen with
  * nowhere to look away to, and the interface is the booth rather than a
  * readout about the booth. So this is three zones, one viewport, never
@@ -59,7 +59,7 @@ const BLANK: Excuse[] = [
   { text: "", voice: "uncle" },
 ];
 
-/** Not instructions — the shape of a line that works, so the blank page isn't one. */
+/** Not instructions, the shape of a line that works, so the blank page isn't one. */
 const HINTS = [
   "He's in the shower, can you come back?",
   "I'm on a call, just leave it by the step.",
@@ -259,7 +259,7 @@ export default function Play() {
     });
   }, []);
 
-  // Watch the silence run out. The engine still decides when it has — this
+  // Watch the silence run out. The engine still decides when it has, this
   // only reports it, so a browser that throttles timers cannot make the game
   // disagree with itself.
   useEffect(() => {
@@ -327,8 +327,8 @@ export default function Play() {
     await engine.current?.submitPrep(draftsRef.current);
   }, []);
 
-  // Prep runs on a clock. Running out is not a punishment — whatever is
-  // written is kept — it is there so the player writes what comes to mind
+  // Prep runs on a clock. Running out is not a punishment, whatever is
+  // written is kept, it is there so the player writes what comes to mind
   // rather than drafting, which is the difference between an excuse and an
   // essay.
   useEffect(() => {
@@ -471,6 +471,8 @@ export default function Play() {
 
         {/* Drawn, not drawn from a file: frame, panels, letterbox, handle, and
             the light underneath with somebody crossing it. */}
+        <div className="grain" aria-hidden="true" />
+
         <div className="doorway" aria-hidden="true">
           <div className="frame" />
           <div className="slab">
@@ -481,6 +483,7 @@ export default function Play() {
           <div className="handle" />
           <div className="sill" />
           <div className="feet" />
+          <div className="mat" />
         </div>
       </main>
     );
@@ -496,7 +499,7 @@ export default function Play() {
           </div>
           <p className="lede">
             Write three lines you can fire without thinking, and pick who says each. They come
-            out instantly and perfectly — no stammer, no pause. They buy you a moment, not an
+            out instantly and perfectly, no stammer, no pause. They buy you a moment, not an
             answer: the visitor still wants one, and still has to hear it from you. A line that
             doesn&rsquo;t fit will cost you, and saying the same one twice costs more.
           </p>
@@ -563,7 +566,7 @@ export default function Play() {
           </h1>
           <p className="lede">
             {errorCode === "mic_denied"
-              ? "Allow the microphone for this page and go again — the whole game is your voice, so there is no playing around it."
+              ? "Allow the microphone for this page and go again. The whole game is your voice, so there is no playing around it."
               : errorCode === "budget"
                 ? "It is a demo on someone's own key, so there is an hourly limit on it. Try again later."
                 : error}

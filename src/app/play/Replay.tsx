@@ -4,7 +4,7 @@
  * The replay.
  *
  * The run is already a list of events and a bag of audio, so this does not
- * reconstruct anything — it reads the journal, lays the clips out on one
+ * reconstruct anything, it reads the journal, lays the clips out on one
  * timeline and follows the word timings that came back with each line.
  *
  * Captions are the reason the word boundaries were worth chasing in the first
@@ -22,7 +22,7 @@ const GAP_MS = 420;
 type Beat = {
   id: string;
   who: "visitor" | VoiceId;
-  /** whose door this was — a night has several, and they are different people */
+  /** whose door this was, a night has several, and they are different people */
   visitorName: string;
   /** the first beat behind this door, so the tape can show where one ends */
   opensDoor: string | null;
@@ -52,7 +52,7 @@ function build(log: RunLog): Beat[] {
     const clip = log.clips.get(event.id);
     if (!clip || clip.pcm.length === 0) continue;
 
-    // The clip's own length, not the service's reported duration — this has to
+    // The clip's own length, not the service's reported duration, this has to
     // line up with what the ear hears, and the samples are the truth.
     const seconds = clip.pcm.length / clip.sampleRate;
 
@@ -152,7 +152,7 @@ export default function Replay({
     const doors = new Set(beats.map((b) => b.visitorName)).size;
 
     return [
-      `Cover Story — ${doors} ${doors === 1 ? "visitor" : "visitors"}, one night`,
+      `Cover Story, ${doors} ${doors === 1 ? "visitor" : "visitors"}, one night`,
       result === "won"
         ? "Talked every one of them off the step."
         : `Got caught. The meter hit ${suspicion}.`,

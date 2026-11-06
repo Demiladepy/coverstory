@@ -1,15 +1,14 @@
 /**
  * The noises the house makes.
  *
- * All synthesised — there is not a single audio file in this project, and
+ * All synthesised, there is not a single audio file in this project, and
  * there does not need to be. A knock is a short burst of noise with the high
  * end taken off and a body under it; the meter landing is a low tone that
  * falls. Both are a few oscillators and an envelope.
  *
  * Papers, Please withholds its music until the moment you are judged, so that
  * when it arrives it means something. The same idea, smaller: the game is
- * silent except for voices, so the two sounds that do exist carry weight —
- * someone is at the door, and they believed you less than they did a moment
+ * silent except for voices, so the two sounds that do exist carry weight, * someone is at the door, and they believed you less than they did a moment
  * ago.
  *
  * Kept deliberately quiet. The voices are the point; these sit underneath.
@@ -25,7 +24,7 @@ export function isMuted(): boolean {
   return muted;
 }
 
-/** One reusable second of white noise — the raw material for the knock. */
+/** One reusable second of white noise, the raw material for the knock. */
 let noise: AudioBuffer | null = null;
 
 function noiseBuffer(ctx: AudioContext): AudioBuffer {
@@ -87,7 +86,7 @@ export function knock(ctx: AudioContext) {
 /**
  * One rap, softer, when the house has gone quiet for too long.
  *
- * Not a warning noise — a person on a doorstep, wondering whether anyone
+ * Not a warning noise, a person on a doorstep, wondering whether anyone
  * heard them. It says the same thing the draining bar says, for anyone who is
  * listening rather than looking.
  */
@@ -99,7 +98,7 @@ export function nudge(ctx: AudioContext) {
 /**
  * The meter landing.
  *
- * Up is a tone that falls — the sound of something settling against you.
+ * Up is a tone that falls, the sound of something settling against you.
  * Down is the same shape inverted and quieter, because being believed should
  * be a relief rather than a reward chime.
  */

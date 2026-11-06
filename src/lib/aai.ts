@@ -24,7 +24,7 @@ async function get(url: string): Promise<Response> {
 }
 
 /**
- * STT token. Note the route and shape differ from the TTS one — different
+ * STT token. Note the route and shape differ from the TTS one, different
  * host, no `product` parameter. Not single-use: mint one per connection.
  */
 export async function mintSttToken(expiresInSeconds = 60, maxSessionSeconds = 240) {
@@ -38,7 +38,7 @@ export async function mintSttToken(expiresInSeconds = 60, maxSessionSeconds = 24
   return data.token;
 }
 
-/** TTS token. Different host and shape from STT — `product=tts` is required. */
+/** TTS token. Different host and shape from STT, `product=tts` is required. */
 export async function mintTtsToken(expiresInSeconds = 60, maxSessionSeconds = 240) {
   const url = new URL(TTS_TOKEN_URL);
   url.searchParams.set("product", "tts");

@@ -1,4 +1,4 @@
-# AssemblyAI — verified API notes
+# AssemblyAI, verified API notes
 
 Read from the live docs on 1 Nov 2026. TTS shipped 28 Oct 2026, so none of this
 is guessable from memory. Everything below was confirmed on the docs pages
@@ -12,22 +12,21 @@ the page.
 - Browsers can't set headers on a WebSocket handshake, so auth goes in the
   `token` query parameter. Mint it server-side.
 - Default model is `universal-3-6-pro`, 16 kHz `pcm_s16le`, mono.
-- **`format_turns` is Universal Streaming (English/Multilingual) only** — it is
+- **`format_turns` is Universal Streaming (English/Multilingual) only**, it is
   *not* available on `universal-3-6-pro` or `universal-3-5-pro`. This is the
   crux of the hesitation question: on the pro models there is no
   formatted/unformatted switch, you get what the model gives. If the pro model
   strips "uh"s, the fallback is `speech_model=universal-streaming-english` with
   `format_turns=false`, which returns raw unformatted words.
-- `prompt` (3.5-pro only) carries *context about the audio*, not instructions —
-  it cannot be used to ask for verbatim output.
+- `prompt` (3.5-pro only) carries *context about the audio*, not instructions, it cannot be used to ask for verbatim output.
 - **No idle timeout by default.** Sessions stay open until `Terminate` or the
   3-hour cap; `KeepAlive` is only needed if you set `inactivity_timeout`. (The
   120 s idle timeout in the project plan is the *TTS* session's, not this one.)
 
 Client → server: raw binary PCM frames, plus
-`{"type":"ForceEndpoint"}` (ends the turn now — this is the push-to-talk
+`{"type":"ForceEndpoint"}` (ends the turn now, this is the push-to-talk
 release), `{"type":"Terminate"}`, `{"type":"KeepAlive"}`,
-`{"type":"UpdateConfiguration", ...}`.
+`{"type":"UpdateConfiguration"...}`.
 
 Server → client: `Begin` (`id`, `expires_at`, `configuration`),
 `SpeechStarted`, `Turn`, `Termination`, `Heartbeat`.
@@ -38,7 +37,7 @@ Server → client: `Begin` (`id`, `expires_at`, `configuration`),
   "words": [{ "text": "Hello", "start": 0, "end": 500, "confidence": 0.99 }] }
 ```
 
-`include_partial_turns` defaults to true — partials are the live caption while
+`include_partial_turns` defaults to true, partials are the live caption while
 the key is held.
 
 There is also an `llm_gateway` connect parameter that runs a completion on each
@@ -50,15 +49,15 @@ slow, since it leaves the visitor's memory of past claims out of the loop.
 
 `GET https://streaming.assemblyai.com/v3/token?expires_in_seconds=60`,
 API key in the `Authorization` header. Returns `{ "token": "..." }`.
-`expires_in_seconds` 1–600. `max_session_duration_seconds` 60–10800 caps the
-session. A token is **not** single-use — mint one per connection and keep the
+`expires_in_seconds` 1-600. `max_session_duration_seconds` 60-10800 caps the
+session. A token is **not** single-use, mint one per connection and keep the
 window short.
 
 ## TTS
 
 Two routes, and we use both for different jobs.
 
-### HTTP — the player's re-voiced line
+### HTTP, the player's re-voiced line
 
 `POST https://tts.us.assemblyai.com/v1/speech/events`, `Authorization` header.
 Takes the Create-speech body and answers **server-sent events** instead of raw
@@ -79,10 +78,10 @@ from the request.
 
 **Every TTS route answers cross-origin requests from any origin**, and a
 temporary token works in the `Authorization` header wherever a key does. So the
-browser can call TTS directly with a minted token — one less hop on the critical
+browser can call TTS directly with a minted token, one less hop on the critical
 path, and the key still never ships.
 
-### WebSocket — the visitor's lines
+### WebSocket, the visitor's lines
 
 `wss://tts.us.assemblyai.com/v1/ws?voice_id=...&language=english&sample_rate=24000&encoding=pcm_s16le&token=...`
 
@@ -92,12 +91,12 @@ audio_duration_ms}`, `WordBoundaries`, `Termination`, `Error`.
 
 - Each `Flush` concludes one request and takes the next `flush_id` (from 0).
   Ids skip after a `Cancel`, so read them off the frames.
-- Consecutive `Generate` texts are joined **with no separator** — keep the
+- Consecutive `Generate` texts are joined **with no separator**, keep the
   spaces at the edges.
 - Raw PCM, no header. It will not play from an `<audio>` element or a `Blob`;
   decode and schedule it, or write a WAV header.
 - Session lasts at most 1 hour and dies after **120 s with no frame either
-  way** — send `KeepAlive` through the prep phase.
+  way**, send `KeepAlive` through the prep phase.
 - `Cancel` is the barge-in.
 
 ### Word boundaries
@@ -114,12 +113,12 @@ have them off unless asked. One frame per request, after that request's
 - One entry per **whitespace-delimited token of your text**, in order, with
   punctuation still attached.
 - `start`/`end` are positions on the **session's** continuous audio timeline,
-  not the request's. **Do not add `audio_start_ms`** — subtract it to get a
+  not the request's. **Do not add `audio_start_ms`**, subtract it to get a
   position inside the request's own audio.
 - Tokens that make no sound (`-`, a lone `?`, `[laughs]`, an emoji) get
   zero-length entries with confidence 0. Skip those when highlighting.
 - **Best effort.** A request can complete and never get a frame. Check
-  `Begin.configuration.word_boundaries` — if the service can't supply them it
+  `Begin.configuration.word_boundaries`, if the service can't supply them it
   echoes `false` even when you asked for `true`. Captions must degrade to no
   captions, never to a broken player.
 
@@ -133,8 +132,7 @@ voices' slugs. Default is `aai-jane`.
 `aai-paul`, `aai-vera`. Every other catalog voice is loaded when a session with
 it opens, and the first use after a while waits longer for its first audio.
 
-That split decides our casting. The three grown-ups are on the critical path —
-the player releases the key and the adult must speak *now* — so they get
+That split decides our casting. The three grown-ups are on the critical path, the player releases the key and the adult must speak *now*, so they get
 built-in voices. The visitor's lines come over a WebSocket opened at level
 start, which has the whole level intro to warm up, so the visitor can afford a
 characterful catalog voice.
@@ -145,8 +143,7 @@ nasal, breathy), `aai-ewald` (middle-aged American man, fast), `aai-audrey`
 soft-spoken), `aai-buford` (older British man, energetic), `aai-lilla`
 (middle-aged British woman, nasal, expressive).
 
-`language` takes a full English name (`english`, `spanish`, …), not a code —
-unlike the STT APIs, which take codes.
+`language` takes a full English name (`english`, `spanish`, …), not a code, unlike the STT APIs, which take codes.
 
 ### TTS token
 
@@ -176,7 +173,7 @@ Everything else worth knowing before relying on one:
   biometric data terms on the dashboard's data controls page, and a clone works
   for **60 days** from when consent was last given. `voice_expires_at` rides on
   `Begin`, on `X-TTS-Voice-Expires-At`, and on the SDK results. Past it,
-  sessions are refused with `voice_expired` — and an expired voice **cannot be
+  sessions are refused with `voice_expired`, and an expired voice **cannot be
   renewed**, only recreated from a new recording, which gives it a new id.
   Renew before expiry by setting `extend_biometric_consent: true` on any
   session or request with the voice; only the owning account may do it.
@@ -191,7 +188,7 @@ Everything else worth knowing before relying on one:
   `not_owner` (3006), `biometric_terms_not_accepted` (3006, or 403 over HTTP).
 - Quality is mostly the recording: close mic, quiet room, uncompressed WAV, and
   speak in the tone you want back. Raspiness, fillers and hesitations carry
-  into the clone — which is the one thing here that is genuinely interesting
+  into the clone, which is the one thing here that is genuinely interesting
   for this game.
 
 ### Why Cover Story does not use one
@@ -208,8 +205,7 @@ possible and it is still not worth shipping:
 - The grown-ups were cast on measured time-to-first-audio, and a clone gives
   that up for a cold start.
 
-The catalog is also much larger than the handful of voices noted above —
-thousands across six languages — so an audition has far more to choose from
+The catalog is also much larger than the handful of voices noted above, thousands across six languages, so an audition has far more to choose from
 than the six originally shortlisted, at no cost to the design.
 
 ## LLM Gateway

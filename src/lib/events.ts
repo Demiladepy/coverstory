@@ -1,5 +1,5 @@
 /**
- * The event contract. Frozen — the UI renders these and nothing else.
+ * The event contract. Frozen, the UI renders these and nothing else.
  *
  * Everything the player sees is a reduction over this stream: the house scene,
  * the suspicion meter, the caption track, the replay. The game engine emits
@@ -52,7 +52,7 @@ export type Claim = {
   voice: VoiceId;
   /** the sentence as spoken */
   text: string;
-  /** which level it was said in — claims carry across levels */
+  /** which level it was said in, claims carry across levels */
   level: LevelId;
   at: number;
 };
@@ -196,7 +196,7 @@ export type Clip = { pcm: Int16Array; sampleRate: number };
  *
  * The audio is kept as raw samples rather than blobs so the whole encounter can
  * be stitched into one file at the end without asking the service for any of it
- * again — the player hears exactly what they heard the first time.
+ * again, the player hears exactly what they heard the first time.
  */
 export type RunLog = {
   startedAt: number;

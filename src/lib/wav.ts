@@ -4,7 +4,7 @@
  * Every line the house and the visitor spoke arrives as raw PCM and is kept,
  * so the whole encounter can be stitched back together without asking the
  * service for any of it again. The result is a WAV because a WAV plays
- * everywhere, with no player and no page — which is the point of a share.
+ * everywhere, with no player and no page, which is the point of a share.
  */
 
 import type { Clip } from "@/lib/events";

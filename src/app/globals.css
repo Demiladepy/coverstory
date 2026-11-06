@@ -158,7 +158,7 @@ label.pick {
 /* =======================================================================
    The encounter.
 
-   Reference: Papers, Please. The lesson there is not the pixel art — it is
+   Reference: Papers, Please. The lesson there is not the pixel art, it is
    that the interface *is* the workplace. There is no dashboard reporting
    your state; there is a booth, a desk and a stamp, all on one cramped
    screen with nowhere to look away to. The stress is the layout.
@@ -383,10 +383,7 @@ label.pick {
 
 /* The door and the keys span the whole wall, but their contents sit in one
    readable column so a wide screen does not stretch them into a strip. */
-.doorstate,
-.heard,
-.keys,
-.notes {
+.doorstate.heard.keys.notes {
   width: min(900px, 100%);
   margin-inline: auto;
 }
@@ -407,7 +404,7 @@ label.pick {
   gap: 10px;
 }
 
-/* Chunky, physical, lit from inside — the only things on screen that are
+/* Chunky, physical, lit from inside, the only things on screen that are
    yours. The bottom border is thicker so a held key can sink into it. */
 .vkey {
   flex: 1;
@@ -467,8 +464,7 @@ label.pick {
   background: #1b1710;
 }
 
-.vkey.down .num,
-.vkey.down .name {
+.vkey.down .num.vkey.down .name {
   color: var(--lamp);
 }
 
@@ -514,7 +510,7 @@ label.pick {
   white-space: nowrap;
 }
 
-/* Spent, not gone — a used line can still be fired, it just costs. */
+/* Spent, not gone, a used line can still be fired, it just costs. */
 .note.used .txt {
   text-decoration: line-through;
   opacity: 0.55;
@@ -750,8 +746,7 @@ label.pick {
     animation: none;
   }
 
-  .underlight,
-  .vkey {
+  .underlight.vkey {
     transition: none;
   }
 }
@@ -784,7 +779,7 @@ label.pick {
 
 /* The line arrives as it is spoken, rather than all at once. Words ahead of
    the voice sit back; the one being said now is the brightest thing outside.
-   Still cold — the lamp belongs to the house, not to the street. */
+   Still cold, the lamp belongs to the house, not to the street. */
 .saidoutside .w {
   transition:
     opacity 140ms ease,
@@ -810,7 +805,7 @@ label.pick {
   }
 }
 
-/* Small, out of the way, and still reachable — the game knocks and thuds, so
+/* Small, out of the way, and still reachable, the game knocks and thuds, so
    there has to be a way to stop it. */
 .hush {
   position: absolute;
@@ -839,7 +834,7 @@ label.pick {
    The shout mechanic was invisible: nothing on screen said that how loudly
    you speak changes what comes out of the house, so nobody would ever find
    it. This is the only readout the player gets of themselves, and the notch
-   is the whole point of it — the game scores a shout against your own normal
+   is the whole point of it, the game scores a shout against your own normal
    level, so the bar is scaled to put that line in the same place whoever is
    talking. */
 .vu {
@@ -906,15 +901,14 @@ label.pick {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .vu-fill,
-  .pips i {
+  .vu-fill.pips i {
     transition: none;
   }
 }
 
 /* The same slot as the voice meter, drained rather than filled: while the
    floor is yours and you are not using it, this is how much of it is left.
-   No notch — there is no threshold here, only the end. */
+   No notch, there is no threshold here, only the end. */
 .vu.patience .vu-fill {
   background: var(--cold-dim);
   transition: width 90ms linear, background-color 400ms ease;
@@ -947,7 +941,7 @@ label.pick {
 }
 
 /* The payoff of the whole shout mechanic: the word you raised your voice on,
-   coming out of a grown-up's mouth. The CAPS are already in the text — this
+   coming out of a grown-up's mouth. The CAPS are already in the text, this
    gives them the weight to match. */
 .heard .hw.shout {
   font-weight: 600;
@@ -981,7 +975,7 @@ label.pick {
 }
 
 /* Each beat now sits in a wrapper that can carry a door marker, so the
-   wrapper has to be the flex box the beat aligns itself inside — otherwise
+   wrapper has to be the flex box the beat aligns itself inside, otherwise
    them-left and us-right both collapse to full width. */
 .tape > div {
   display: flex;
@@ -992,7 +986,7 @@ label.pick {
    The hallway.
 
    Every screen in this game is the same place: standing inside, at night,
-   at a door. The encounter had that and nothing else did — the opening
+   at a door. The encounter had that and nothing else did, the opening
    screen was flat black with a column of text on it, which is a document,
    not a place.
 
@@ -1016,7 +1010,7 @@ label.pick {
   overflow-y: auto;
 }
 
-/* The door. Not drawn as a rectangle with a handle — just a wall that the
+/* The door. Not drawn as a rectangle with a handle, just a wall that the
    dark gives way to, which is all you see of a door in an unlit hallway. */
 .hall::before {
   content: "";
@@ -1027,7 +1021,7 @@ label.pick {
   height: min(54vh, 480px);
   background:
     /* light spilling up from under the door, which is the only thing in this
-       hallway that is lit — without it the door is a shape and not a place */
+       hallway that is lit, without it the door is a shape and not a place */
     radial-gradient(76% 82% at 50% 100%, rgba(240, 180, 76, 0.2) 0%, transparent 68%),
     /* the door itself: a wall the dark gives way to, with a frame line where
        it meets the top of the frame */
@@ -1056,7 +1050,7 @@ label.pick {
   pointer-events: none;
 }
 
-/* Content stands in front of the door, not behind it — and centred, because
+/* Content stands in front of the door, not behind it, and centred, because
    this is a title card, not a page of prose. */
 .hall > .card {
   position: relative;
@@ -1064,8 +1058,7 @@ label.pick {
   text-align: center;
 }
 
-.hall .lede,
-.hall .big-line {
+.hall .lede.hall .big-line {
   margin-inline: auto;
 }
 
@@ -1172,8 +1165,7 @@ label.pick {
     padding: 13px 12px;
   }
 
-  .go,
-  .quiet {
+  .go.quiet {
     padding: 13px 18px;
   }
 
@@ -1195,7 +1187,7 @@ label.pick {
    clicks a title card. It needed something to look at and something to
    happen, without a single image file.
 
-   So the door is drawn — frame, panels, handle, letterbox — and somebody is
+   So the door is drawn, frame, panels, handle, letterbox, and somebody is
    outside it. A shadow crosses the light under the door every few seconds
    and, once in a while, stops. That shadow is the entire game in one
    gesture, and it is two divs.
@@ -1232,8 +1224,7 @@ label.pick {
     text-align: left;
   }
 
-  .cover-words .lede,
-  .cover-words .big-line {
+  .cover-words .lede.cover-words .big-line {
     margin-inline: 0;
   }
 }
@@ -1353,7 +1344,7 @@ label.pick {
 }
 
 /* Somebody is out there. The shadow crosses the light, and once in a while
-   it stops — which is the moment the game begins. */
+   it stops, which is the moment the game begins. */
 .doorway .feet {
   position: absolute;
   left: 2px;
@@ -1412,8 +1403,7 @@ label.pick {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .doorway .sill,
-  .doorway .feet::before {
+  .doorway .sill.doorway .feet::before {
     animation: none;
   }
 
@@ -1442,15 +1432,13 @@ label.pick {
   text-align: left;
 }
 
-.hall > .card.form .lede,
-.hall > .card.form .big-line {
+.hall > .card.form .lede.hall > .card.form .big-line {
   margin-inline: 0;
 }
 
 /* The tape is a transcript: the centring of the card around it must not reach
    inside the bubbles, or every speaker label floats in the middle of its line. */
-.tape,
-.tape .beat {
+.tape.tape .beat {
   text-align: left;
 }
 
@@ -1462,4 +1450,126 @@ label.pick {
 .quiet:hover {
   border-color: #475164;
   color: #e6ebf2;
+}
+
+/* =======================================================================
+   Depth.
+
+   A drawn door on flat black is a shape on a void. A hallway at night is
+   not black, it is a dozen very dark things at slightly different values,
+   and the difference between those two is most of what makes a scene read
+   as somewhere rather than something.
+
+   So: a wall that is lighter where the light reaches it, a floor the door
+   stands on, grain over all of it, and a vignette pulling the corners
+   down. Six layers, no image files, and every one of them is a rectangle.
+   ======================================================================= */
+
+.cover {
+  position: relative;
+  isolation: isolate;
+}
+
+/* The room: a back wall warmed from below, a floor, and the line where they
+   meet. Behind everything. */
+.cover::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  background:
+    /* the line where the wall meets the floor */
+    linear-gradient(180deg, transparent calc(78% - 1px), #272d39 78%, transparent calc(78% + 1px)),
+    /* the floor, which catches more light than the wall does */
+    linear-gradient(180deg, transparent 78%, #15181f 78%, #0e1116 100%),
+    /* the wall, warmed low where the light under the door reaches it */
+    linear-gradient(180deg, #0a0c11 0%, #0e1117 54%, #14171f 78%),
+    /* and the spill itself, wide and soft */
+    radial-gradient(85% 42% at 50% 80%, rgba(240, 180, 76, 0.1) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* Grain and vignette, over everything. The grain is what stops six stacked
+   gradients looking like six stacked gradients. */
+/* The vignette, at full strength: it is what keeps the eye on the door. */
+.cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: radial-gradient(118% 88% at 50% 44%, transparent 38%, rgba(0, 0, 0, 0.62) 100%);
+  pointer-events: none;
+}
+
+/* The grain, separately and barely there. You should not be able to see it;
+   you should only notice its absence, because without it six stacked
+   gradients look like six stacked gradients. */
+.grain {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  opacity: 0.045;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 140px 140px;
+  pointer-events: none;
+}
+
+/* Content sits above the room layers. The grain is excluded: it is a layer,
+   not content, and relative positioning would drop it into the grid as a
+   third column. */
+.cover > *:not(.grain) {
+  position: relative;
+  z-index: 1;
+}
+
+/* ---- the door gets some material -------------------------------------- */
+
+/* A bevel on the frame: the edge nearest the light is brighter. */
+.doorway .frame {
+  box-shadow:
+    inset 0 0 0 1px #2b323f,
+    inset 2px 0 0 0 rgba(90, 100, 120, 0.16),
+    inset -2px 0 0 0 rgba(0, 0, 0, 0.5),
+    0 40px 90px -30px rgba(0, 0, 0, 0.95);
+}
+
+/* Painted wood, not a flat fill: a vertical striation you cannot quite see
+   and would miss if it went. */
+.doorway .slab::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.012) 0px,
+    rgba(255, 255, 255, 0.012) 1px,
+    transparent 1px,
+    transparent 7px
+  );
+  pointer-events: none;
+}
+
+/* The door is lit from under itself, so the bottom of it is less dark. */
+.doorway .slab::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 34%;
+  background: linear-gradient(180deg, transparent, rgba(240, 180, 76, 0.07));
+  pointer-events: none;
+}
+
+/* A mat, flat on the floor and lit from the door rather than drawn as a
+   slab in mid-air. */
+.doorway .mat {
+  position: absolute;
+  left: -32%;
+  right: -32%;
+  top: calc(100% + 14px);
+  height: 10px;
+  border-radius: 50%;
+  background: radial-gradient(60% 100% at 50% 50%, rgba(62, 52, 34, 0.9), rgba(16, 18, 23, 0) 78%);
+  pointer-events: none;
 }

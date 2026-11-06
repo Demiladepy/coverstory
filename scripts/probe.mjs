@@ -187,7 +187,7 @@ async function brain() {
   const user =
     'The adult voice said: "uh, yeah, hi, my dad- I mean, I am the dad, just leave it at the door."';
 
-  // Cheap and fast first — a visitor's turn is a short reply and four
+  // Cheap and fast first, a visitor's turn is a short reply and four
   // booleans, so there is nothing here worth paying a frontier model for.
   // Some ids the docs list are gated per account, which only a call reveals.
   const models = [
@@ -302,13 +302,13 @@ async function budget() {
  * to let go. So this synthesises a line, streams it to the transcript socket at
  * exactly real time the way a mic would, and then measures the release.
  *
- * It runs the same audio twice. Once gated — the stream stops dead at the
- * release, which is what push-to-talk should do. Once ungated — the stream
+ * It runs the same audio twice. Once gated, the stream stops dead at the
+ * release, which is what push-to-talk should do. Once ungated, the stream
  * keeps running afterwards, which is what the browser was doing by accident.
  * The difference between the two numbers is the bug.
  */
 async function endpointing() {
-  heading("ForceEndpoint — gated against ungated");
+  heading("ForceEndpoint, gated against ungated");
 
   const line =
     "Hi, yeah, sorry, um, my dad is in the shower right now, so he can't come to the door.";
@@ -401,7 +401,7 @@ async function streamAndRelease(pcm, gated) {
 
   await new Promise((r) => ws.addEventListener("open", r, { once: true }));
 
-  // 64 ms chunks, paced off a fixed start so the clock does not drift — this
+  // 64 ms chunks, paced off a fixed start so the clock does not drift, this
   // is a microphone's behaviour, not a file's.
   const CHUNK = 2048; // bytes = 1024 samples = 64 ms
   const startedAt = performance.now();
@@ -441,7 +441,7 @@ async function streamAndRelease(pcm, gated) {
 }
 
 async function main() {
-  console.log("\x1b[1mCover Story — API probe\x1b[0m");
+  console.log("\x1b[1mCover Story, API probe\x1b[0m");
   console.log(new Date().toISOString());
 
   if (process.argv[2] && process.argv[2] !== "all") { if (process.argv[2] === "brain") { await brain(); return; } if (process.argv[2] === "voices") { await voices(); return; } if (process.argv[2] === "endpoint") { await endpointing(); return; } }

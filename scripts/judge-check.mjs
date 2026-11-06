@@ -7,7 +7,7 @@
  * costs them nothing, a false one punishes them for something they did not do.
  * So MISSES are a disappointment and FALSE POSITIVES are a bug.
  *
- * Every case uses the payload the engine actually sends — each house line is
+ * Every case uses the payload the engine actually sends, each house line is
  * pushed onto `claims` before the next visitor line is asked for, so the newest
  * claim is the one under judgement. Getting that wrong once made a model look
  * worse than it was.
@@ -19,9 +19,9 @@ const URL = process.env.JUDGE_URL ?? "http://localhost:3200/api/visitor";
 
 const AT_WORK = { voice: "mom", text: "I am at work until about nine tonight." };
 const workOpening = [
-  { speaker: "visitor", text: "Sorry to knock so late — is your mother in?" },
+  { speaker: "visitor", text: "Sorry to knock so late, is your mother in?" },
   { speaker: "mom", text: AT_WORK.text },
-  { speaker: "visitor", text: "Oh — so who is at home then?" },
+  { speaker: "visitor", text: "Oh, so who is at home then?" },
 ];
 
 /** `expect` is what SHOULD come back. `costly` marks the cases where being

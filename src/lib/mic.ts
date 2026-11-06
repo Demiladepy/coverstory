@@ -6,7 +6,7 @@
  * start/end times on the session's audio timeline, and this track is on the
  * same timeline, so a word can be looked up by when it was said and scored for
  * how hard it was said. That is what turns a shout into CAPS in the adult's
- * mouth — cheap, and the moment people laugh.
+ * mouth, cheap, and the moment people laugh.
  *
  * The gate is the push-to-talk key. While it is shut nothing is captured, sent
  * or timed, so the server's audio clock and ours stay the same clock. Leaving
@@ -23,7 +23,7 @@ export type Mic = {
    * or it reads the audio at the wrong speed.
    */
   sampleRate: number;
-  /** ms of audio actually sent — the same clock the server's word times use */
+  /** ms of audio actually sent, the same clock the server's word times use */
   elapsedMs: () => number;
   /**
    * Put the clock back to zero for a new transcript session.
@@ -76,7 +76,7 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
   // have historically ignored it and handed back the device rate instead. We
   // take what we are given and tell the transcript socket the truth, because
   // sending 48 kHz audio labelled as 16 kHz makes the server hear everything
-  // at a third speed — which looks like catastrophic latency and is not.
+  // at a third speed, which looks like catastrophic latency and is not.
   const ctx = new AudioContext({ sampleRate: 16000 });
   if (ctx.state === "suspended") await ctx.resume();
 
@@ -95,7 +95,7 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
   /** every loudness reading of the night, which the speaker's normal comes from */
   const heard: number[] = [];
 
-  // A worklet hands us 128 samples at a time — 8 ms at 16 kHz — and the
+  // A worklet hands us 128 samples at a time, 8 ms at 16 kHz, and the
   // transcript socket refuses anything under 20 ms. So the PCM is batched into
   // chunks before it goes out. The loudness track is not batched: it stays at
   // the worklet's own resolution, because a shout is a short, sharp thing and
@@ -164,7 +164,7 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
     },
 
     close() {
-      // The part-filled chunk belongs to this turn — send it before the caller
+      // The part-filled chunk belongs to this turn, send it before the caller
       // asks for the turn to end, or the tail of the last word is lost.
       emit();
       gateOpen = false;

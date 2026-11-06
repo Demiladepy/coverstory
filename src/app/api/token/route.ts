@@ -97,7 +97,7 @@ export async function POST(req: Request) {
     // Both tokens have to outlive the door they are minted for, and the TTS
     // one is the reason why: it authorises every line the house speaks, over
     // HTTP, for as long as the door is open. At five minutes it expired before
-    // a door capped at seven could end — so a slow encounter would simply lose
+    // a door capped at seven could end, so a slow encounter would simply lose
     // its voice part way through, and every line after that would fail.
     //
     // Ten minutes is the documented maximum and comfortably outlasts the cap,

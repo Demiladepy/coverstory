@@ -15,8 +15,8 @@
  *  3. Does a shout register? The mic's loudness track has to separate a raised
  *     voice from a normal one, or the CAPS trick has nothing to fire on.
  *
- * This is not throwaway. Every piece it exercises — tokens, the STT socket,
- * ForceEndpoint, re-voicing over HTTP, word timings — is the core loop, and the
+ * This is not throwaway. Every piece it exercises, tokens, the STT socket,
+ * ForceEndpoint, re-voicing over HTTP, word timings, is the core loop, and the
  * numbers it prints go straight into the README.
  */
 
@@ -103,7 +103,7 @@ export default function Spike() {
   const onTurn = useCallback(async (turn: SttTurn) => {
     if (!busy.current) {
       // The model ended a turn by itself, at a pause, while the key was still
-      // down. That is not the player letting go — carry the words and glue them
+      // down. That is not the player letting go, carry the words and glue them
       // onto the turn the release does produce, or they are simply lost.
       carried.current.text = `${carried.current.text} ${turn.transcript}`.trim();
       carried.current.words.push(...turn.words);
@@ -115,7 +115,7 @@ export default function Spike() {
     carried.current = { text: "", words: [] };
 
     if (!transcript) {
-      setStatus("Nothing came through — try again, a little louder.");
+      setStatus("Nothing came through, try again, a little louder.");
       busy.current = false;
       return;
     }
@@ -199,7 +199,7 @@ export default function Spike() {
           const since = releasedAt.current ? Math.round(atMs - releasedAt.current) : 0;
           const label = `${message.type}${message.end_of_turn ? " · final" : ""}`;
           setTrace((prev) =>
-            [`${label} — ${audioS}s audio sent, ${since} ms since release`, ...prev].slice(0, 14),
+            [`${label}, ${audioS}s audio sent, ${since} ms since release`, ...prev].slice(0, 14),
           );
         },
         onBegin: (info) => setSttConfig(info.configuration),
@@ -222,7 +222,7 @@ export default function Spike() {
   }, [model, onTurn, teardown]);
 
   // Push to talk. Space is held down, not toggled, so the release is the
-  // signal — exactly what ForceEndpoint wants.
+  // signal, exactly what ForceEndpoint wants.
   useEffect(() => {
     if (!armed) return;
 
@@ -317,7 +317,7 @@ export default function Spike() {
         <div className="row">
           {!armed ? (
             <button className="primary" onClick={() => void start()}>
-              Start — allow the mic
+              Start, allow the mic
             </button>
           ) : (
             <button onClick={teardown}>Stop</button>
@@ -336,7 +336,7 @@ export default function Spike() {
         {!armed
           ? "Start above, then hold Space"
           : holding
-            ? "● Listening — let go when you're done"
+            ? "● Listening, let go when you're done"
             : "Hold Space to talk"}
         <div className="mono dim" style={{ marginTop: 10, fontWeight: 400, minHeight: 20 }}>
           {partial || " "}
@@ -422,7 +422,7 @@ export default function Spike() {
                     <td>{ms(r.speakMs)}</td>
                     <td className={r.gapMs <= 1500 ? "good" : "bad"}>{ms(r.gapMs)}</td>
                     <td className={r.fillers.length ? "warm" : "faint"}>
-                      {r.fillers.length ? r.fillers.join(" ") : "—"}
+                      {r.fillers.length ? r.fillers.join(" ") : "-"}
                     </td>
                     <td className={r.shouted ? "warm" : "faint"}>
                       {r.shouted ? "yes" : "no"} ({r.peak.toFixed(2)}/{r.baseline.toFixed(2)})

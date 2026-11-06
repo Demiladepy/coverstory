@@ -38,7 +38,7 @@ function decodeBase64(b64: string): Uint8Array {
 /**
  * Speak one line and play it as it arrives.
  *
- * `onFirstAudio` fires the moment the first buffer is scheduled — that is the
+ * `onFirstAudio` fires the moment the first buffer is scheduled, that is the
  * number the whole game is designed around, so it is reported separately
  * rather than inferred from when this promise settles.
  */

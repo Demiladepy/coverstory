@@ -8,12 +8,12 @@
  *
  * What carries between encounters is the only thing that should: the claims.
  * Each visitor is a different person, so each gets a conversation of their own
- * and their own starting wariness — but everything an adult of this house has
+ * and their own starting wariness, but everything an adult of this house has
  * ever said out loud stays on the record, and the thing you told the pizza
  * driver at eight is still true, or isn't, when the relatives arrive.
  *
  * The engine owns the hardware and the sockets and emits GameEvents. It knows
- * nothing about pixels — everything the player sees is a reduction over the
+ * nothing about pixels, everything the player sees is a reduction over the
  * event stream, which is what lets the screen be built and restyled without
  * touching any of this.
  *
@@ -81,7 +81,7 @@ export function createEngine(opts: {
   let levelIndex = 0;
   let level = LEVEL_BY_ID[opts.levels[0]];
   const runStart = performance.now();
-  /** ms since the run began — every event is stamped on this one clock */
+  /** ms since the run began, every event is stamped on this one clock */
   const at = () => Math.round(performance.now() - runStart);
 
   let ctx: AudioContext | null = null;
@@ -118,7 +118,7 @@ export function createEngine(opts: {
 
   /** words from turns the model closed by itself, mid-hold */
   const carried = { text: "", words: [] as SttWord[] };
-  /** this visitor's conversation — a new one at every door */
+  /** this visitor's conversation, a new one at every door */
   let history: { speaker: Speaker; text: string }[] = [];
   /**
    * Everything an adult of this house has claimed out loud, all night.
@@ -164,7 +164,7 @@ export function createEngine(opts: {
    * Tokens for the door about to open.
    *
    * One night needs several, because each door gets its own transcript
-   * session — a session bills for as long as its socket is open whether or not
+   * session, a session bills for as long as its socket is open whether or not
    * anyone is talking, so holding one through four prep phases would bill
    * three minutes of somebody typing. The run id is what stops those refills
    * each counting as a fresh run against the hourly cap.
@@ -226,7 +226,7 @@ export function createEngine(opts: {
    * Move the meter. Returns true when that was the end of it.
    *
    * The meter only ever moves here, with its reasons attached, so the screen
-   * can always say why — a meter that climbs without telling you what you did
+   * can always say why, a meter that climbs without telling you what you did
    * is a meter you cannot learn to play against.
    */
   function applyScore(scored: Scored): boolean {
@@ -337,7 +337,7 @@ export function createEngine(opts: {
 
   /**
    * Saying nothing is an answer, and a bad one. The grace window is generous
-   * on purpose — the player has to read the question, pick a grown-up and find
+   * on purpose, the player has to read the question, pick a grown-up and find
    * the key, and punishing that would punish learning the game rather than
    * playing it badly.
    */
@@ -369,9 +369,9 @@ export function createEngine(opts: {
       };
     } catch {
       // The visitor still has to say something, or the encounter just stops.
-      // A failed judgement is not a contradiction — never score on a guess.
+      // A failed judgement is not a contradiction, never score on a guess.
       fail("brain_failed", "the visitor lost their thread for a moment");
-      return { text: "Sorry — say that again?", addressedTo: null, contradiction: null };
+      return { text: "Sorry, say that again?", addressedTo: null, contradiction: null };
     }
   }
 
@@ -441,7 +441,7 @@ export function createEngine(opts: {
         at: at(),
       });
     } catch {
-      fail("tts_failed", "the house went quiet — that line never made it out");
+      fail("tts_failed", "the house went quiet, that line never made it out");
       ready();
       return;
     }
@@ -452,7 +452,7 @@ export function createEngine(opts: {
 
     // Everything the code can judge is known the moment the words land. The one
     // thing it cannot judge arrives with the visitor's next line, so the model
-    // is asked even on the turn that would win the level — being caught on the
+    // is asked even on the turn that would win the level, being caught on the
     // last word is a better ending than a free pass.
     const facts: Omit<TurnFacts, "contradiction"> = {
       transcript,
@@ -525,7 +525,7 @@ export function createEngine(opts: {
         at: at(),
       });
     } catch {
-      fail("tts_failed", "the house went quiet — that line never made it out");
+      fail("tts_failed", "the house went quiet, that line never made it out");
       ready();
       return;
     }
@@ -535,7 +535,7 @@ export function createEngine(opts: {
 
     // Deliberately does NOT advance turnsSurvived. A door needs as many answers
     // as it needs, and the first one needed exactly as many as there are excuse
-    // slots — so three taps cleared the pizza driver without the player ever
+    // slots, so three taps cleared the pizza driver without the player ever
     // opening their mouth, in a game whose entire subject is the voice.
     //
     // A prepared line still does everything else: it keeps the silence off the
@@ -566,7 +566,7 @@ export function createEngine(opts: {
       // Everything else opens behind the prep screen. The microphone prompt,
       // a token, the transcript socket and waking the model together cost
       // several seconds that the player now spends writing rather than
-      // watching a spinner — and the permission prompt lands over a page that
+      // watching a spinner, and the permission prompt lands over a page that
       // explains itself rather than over a blank one. The click's activation
       // still covers the microphone request, because it is made immediately.
       setup = (async () => {
@@ -585,7 +585,7 @@ export function createEngine(opts: {
             });
           });
         } catch {
-          fail("mic_denied", "Cover Story needs the microphone — it is the whole game.", false);
+          fail("mic_denied", "Cover Story needs the microphone, it is the whole game.", false);
           throw new Error("no mic");
         }
 
@@ -603,8 +603,8 @@ export function createEngine(opts: {
 
     async submitPrep(written) {
       // The countdown hands prep in when it runs out and the button hands it
-      // in when it is pressed, so pressing it as the clock hits zero — or
-      // simply pressing it twice — used to open the door twice: two openers
+      // in when it is pressed, so pressing it as the clock hits zero, or
+      // simply pressing it twice, used to open the door twice: two openers
       // talking over each other, two level_start events, one conversation the
       // visitor had with themselves.
       if (prepSubmitted || stopped) return;

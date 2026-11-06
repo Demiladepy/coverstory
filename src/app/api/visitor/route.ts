@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
  * thought: a visitor notices the thing that does not add up and *then* decides
  * what to ask. It reads well and it scored badly. Measured over the nine cases
  * in scripts/judge-check.mjs, the combined call kept flagging contradictions
- * that were not there — a grown-up being vague, or admitting they did not
+ * that were not there, a grown-up being vague, or admitting they did not
  * know, came back as a clash.
  *
  * The reason is the premise. A character whose whole job is to catch you out,
@@ -48,7 +48,7 @@ type Judged = { contradicts?: boolean; what?: string };
 
 /** If the model falls over, the visitor still has to say something. */
 const PROD = [
-  "Sorry — say that again?",
+  "Sorry, say that again?",
   "I didn't catch that. Who am I speaking to?",
   "Right. And you are?",
 ];
@@ -113,7 +113,7 @@ export async function POST(req: Request) {
 
   // The first completion of a run costs about three seconds and every one after
   // it costs one. That first one would land on the player's first answer, which
-  // is the worst place for it, so it is spent here instead — during the
+  // is the worst place for it, so it is spent here instead, during the
   // visitor's opening line, where there is four seconds of audio to hide in.
   if (body.warm) {
     await chat({ messages: [{ role: "user", content: "ok" }], maxTokens: 1 }).catch(() => {});
@@ -239,7 +239,7 @@ async function judge(claims: { voice: string; text: string }[]) {
     `- saying more, or less, than before about the same thing`,
     ``,
     `Two statements about the same person in different places, or the same`,
-    `fact told two different ways, do clash — say so plainly when they do.`,
+    `fact told two different ways, do clash, say so plainly when they do.`,
     ``,
     `Answer as JSON and nothing else:`,
     `{"contradicts": true | false, "what": "<the two statements that clash>"}`,
