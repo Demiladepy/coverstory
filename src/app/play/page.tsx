@@ -438,7 +438,7 @@ export default function Play() {
           </p>
 
           <p className="title">
-            Tonight &mdash; {doorsTonight} {doorsTonight === 1 ? "door" : "doors"}, in order
+            Tonight: {doorsTonight} {doorsTonight === 1 ? "door" : "doors"}, in order
           </p>
           <div className="doors">
             {LEVELS.map((l, i) => {
