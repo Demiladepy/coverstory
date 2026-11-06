@@ -426,8 +426,8 @@ export default function Play() {
 
   if (phase === "ready") {
     return (
-      <main className="night hall">
-        <div className="card scroller">
+      <main className="night cover">
+        <div className="cover-words">
           {trouble}
           <p className="title">Cover Story</p>
           <h1 className="big-line">Someone is at the door.</h1>
@@ -468,6 +468,20 @@ export default function Play() {
             Get your story straight
           </button>
         </div>
+
+        {/* Drawn, not drawn from a file: frame, panels, letterbox, handle, and
+            the light underneath with somebody crossing it. */}
+        <div className="doorway" aria-hidden="true">
+          <div className="frame" />
+          <div className="slab">
+            <div className="panel high" />
+            <div className="slot" />
+            <div className="panel low" />
+          </div>
+          <div className="handle" />
+          <div className="sill" />
+          <div className="feet" />
+        </div>
       </main>
     );
   }
@@ -475,7 +489,7 @@ export default function Play() {
   if (phase === "prep") {
     return (
       <main className="night hall">
-        <div className="card scroller">
+        <div className="card scroller form">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <p className="title">Before they knock</p>
             <span className={`clock ${prepLeft <= 10 ? "soon" : ""}`}>{prepLeft}s</span>

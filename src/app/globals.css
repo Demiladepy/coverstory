@@ -1187,3 +1187,279 @@ label.pick {
     padding: 11px 10px;
   }
 }
+
+/* =======================================================================
+   The cover.
+
+   The opening screen was a title card: correct, restrained, and nobody
+   clicks a title card. It needed something to look at and something to
+   happen, without a single image file.
+
+   So the door is drawn — frame, panels, handle, letterbox — and somebody is
+   outside it. A shadow crosses the light under the door every few seconds
+   and, once in a while, stops. That shadow is the entire game in one
+   gesture, and it is two divs.
+   ======================================================================= */
+
+.cover {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr;
+  align-content: center;
+  justify-items: center;
+  gap: 26px;
+  padding: 28px 20px;
+  overflow-y: auto;
+}
+
+@media (min-width: 820px) {
+  .cover {
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    align-items: center;
+    justify-items: start;
+    gap: 56px;
+    padding: 32px clamp(32px, 6vw, 90px);
+  }
+}
+
+.cover-words {
+  width: min(520px, 100%);
+  text-align: center;
+}
+
+@media (min-width: 820px) {
+  .cover-words {
+    text-align: left;
+  }
+
+  .cover-words .lede,
+  .cover-words .big-line {
+    margin-inline: 0;
+  }
+}
+
+/* ---- the door ---------------------------------------------------------- */
+
+.doorway {
+  position: relative;
+  height: min(21vh, 168px);
+  aspect-ratio: 5 / 9;
+  width: auto;
+  justify-self: center;
+  flex: none;
+}
+
+@media (min-width: 820px) {
+  .doorway {
+    height: min(52vh, 420px);
+  }
+}
+
+/* The frame it sits in. */
+.doorway .frame {
+  position: absolute;
+  inset: 0;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, #1d222c 0%, #151922 100%);
+  box-shadow:
+    inset 0 0 0 1px #262c38,
+    0 30px 70px -20px rgba(0, 0, 0, 0.9);
+}
+
+/* The door. */
+.doorway .slab {
+  position: absolute;
+  inset: 9px 9px 0 9px;
+  border-radius: 4px 4px 0 0;
+  background: linear-gradient(176deg, #171b24 0%, #12161e 55%, #0e1118 100%);
+  box-shadow: inset 0 0 0 1px #20262f;
+  overflow: hidden;
+}
+
+/* Two recessed panels, which is what makes a rectangle read as a door. */
+.doorway .panel {
+  position: absolute;
+  left: 16%;
+  right: 16%;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #10141b 0%, #151a23 100%);
+  box-shadow:
+    inset 0 1px 0 0 rgba(0, 0, 0, 0.6),
+    0 1px 0 0 rgba(44, 52, 66, 0.5);
+}
+
+.doorway .panel.high {
+  top: 10%;
+  height: 32%;
+}
+
+.doorway .panel.low {
+  top: 50%;
+  height: 32%;
+}
+
+/* A letterbox, because every front door has one and it is one more thing
+   that could open. */
+.doorway .slot {
+  position: absolute;
+  left: 32%;
+  right: 32%;
+  top: 46%;
+  height: 4px;
+  border-radius: 2px;
+  background: #0a0d12;
+  box-shadow: inset 0 1px 0 0 rgba(0, 0, 0, 0.8), 0 1px 0 0 rgba(44, 52, 66, 0.4);
+}
+
+.doorway .handle {
+  position: absolute;
+  right: 15%;
+  top: 52%;
+  width: 11px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 30%, #6b7183, #2d3340 70%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* ---- and the light under it -------------------------------------------- */
+
+.doorway .sill {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 0;
+  height: 5px;
+  border-radius: 1px;
+  background: linear-gradient(90deg, var(--lamp-deep), var(--lamp) 20%, var(--lamp) 80%, var(--lamp-deep));
+  box-shadow:
+    0 0 14px 1px rgba(255, 219, 150, 0.6),
+    0 10px 46px 10px rgba(240, 180, 76, 0.34);
+  animation: lamp 7s ease-in-out infinite;
+}
+
+/* A hallway bulb is never perfectly steady. */
+@keyframes lamp {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  44% {
+    opacity: 0.9;
+  }
+  52% {
+    opacity: 0.97;
+  }
+}
+
+/* Somebody is out there. The shadow crosses the light, and once in a while
+   it stops — which is the moment the game begins. */
+.doorway .feet {
+  position: absolute;
+  left: 2px;
+  right: 2px;
+  bottom: 0;
+  height: 5px;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.doorway .feet::before {
+  content: "";
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 46%;
+  background:
+    radial-gradient(circle at 29% 50%, #05070a 0 40%, transparent 46%),
+    radial-gradient(circle at 71% 50%, #05070a 0 40%, transparent 46%);
+  filter: blur(0.6px);
+  animation: passing 9s cubic-bezier(0.4, 0, 0.5, 1) infinite;
+}
+
+@keyframes passing {
+  0% {
+    transform: translateX(-120%);
+  }
+  26% {
+    transform: translateX(28%);
+  }
+  /* the pause: they have stopped at your door */
+  54% {
+    transform: translateX(32%);
+  }
+  80%,
+  100% {
+    transform: translateX(240%);
+  }
+}
+
+/* The pool of light the door throws onto the floor in front of it. */
+.doorway::after {
+  content: "";
+  position: absolute;
+  left: -58%;
+  right: -58%;
+  top: calc(100% - 3px);
+  height: 30%;
+  background: radial-gradient(
+    52% 100% at 50% 0%,
+    rgba(240, 180, 76, 0.22) 0%,
+    rgba(240, 180, 76, 0.07) 42%,
+    transparent 72%
+  );
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doorway .sill,
+  .doorway .feet::before {
+    animation: none;
+  }
+
+  .doorway .feet::before {
+    transform: translateX(28%);
+  }
+}
+
+@media (max-width: 480px) {
+  .cover {
+    gap: 14px;
+    padding: 20px 16px;
+  }
+}
+
+/* Very short screens: the door is the first thing to give up its height. */
+@media (max-height: 620px) and (max-width: 819px) {
+  .doorway {
+    display: none;
+  }
+}
+
+/* Prep is a form, not a title card: prose you read while typing wants a left
+   edge to come back to. */
+.hall > .card.form {
+  text-align: left;
+}
+
+.hall > .card.form .lede,
+.hall > .card.form .big-line {
+  margin-inline: 0;
+}
+
+/* The tape is a transcript: the centring of the card around it must not reach
+   inside the bubbles, or every speaker label floats in the middle of its line. */
+.tape,
+.tape .beat {
+  text-align: left;
+}
+
+/* A secondary action still has to look like a button next to a primary one. */
+.quiet {
+  border-color: #313846;
+}
+
+.quiet:hover {
+  border-color: #475164;
+  color: #e6ebf2;
+}
