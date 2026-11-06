@@ -154,7 +154,6 @@ label.pick {
   background: #2a1512;
 }
 
-
 /* =======================================================================
    The encounter.
 
@@ -1184,13 +1183,14 @@ label.pick {
    The cover.
 
    The opening screen was a title card: correct, restrained, and nobody
-   clicks a title card. It needed something to look at and something to
-   happen, without a single image file.
+   clicks a title card. Then it was a door built out of divs, which was
+   better and still read as an interface rather than a place.
 
-   So the door is drawn, frame, panels, handle, letterbox, and somebody is
-   outside it. A shadow crosses the light under the door every few seconds
-   and, once in a while, stops. That shadow is the entire game in one
-   gesture, and it is two divs.
+   It is now a drawn scene, in Hallway.tsx: your own hallway at night, the
+   front door shut, and the only light in the house coming from the wrong
+   side of it with somebody standing in the gap. Vector, so it is the same
+   picture on a phone and on a projector and it costs no download. The
+   layers below grade and darken it; the drawing itself does the rest.
    ======================================================================= */
 
 .cover {
@@ -1206,10 +1206,7 @@ label.pick {
 
 @media (min-width: 820px) {
   .cover {
-    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-    align-items: center;
     justify-items: start;
-    gap: 56px;
     padding: 32px clamp(32px, 6vw, 90px);
   }
 }
@@ -1229,200 +1226,10 @@ label.pick {
   }
 }
 
-/* ---- the door ---------------------------------------------------------- */
-
-.doorway {
-  position: relative;
-  height: min(21vh, 168px);
-  aspect-ratio: 5 / 9;
-  width: auto;
-  justify-self: center;
-  flex: none;
-}
-
-@media (min-width: 820px) {
-  .doorway {
-    height: min(52vh, 420px);
-  }
-}
-
-/* The frame it sits in. */
-.doorway .frame {
-  position: absolute;
-  inset: 0;
-  border-radius: 6px 6px 0 0;
-  background: linear-gradient(180deg, #1d222c 0%, #151922 100%);
-  box-shadow:
-    inset 0 0 0 1px #262c38,
-    0 30px 70px -20px rgba(0, 0, 0, 0.9);
-}
-
-/* The door. */
-.doorway .slab {
-  position: absolute;
-  inset: 9px 9px 0 9px;
-  border-radius: 4px 4px 0 0;
-  background: linear-gradient(176deg, #171b24 0%, #12161e 55%, #0e1118 100%);
-  box-shadow: inset 0 0 0 1px #20262f;
-  overflow: hidden;
-}
-
-/* Two recessed panels, which is what makes a rectangle read as a door. */
-.doorway .panel {
-  position: absolute;
-  left: 16%;
-  right: 16%;
-  border-radius: 3px;
-  background: linear-gradient(180deg, #10141b 0%, #151a23 100%);
-  box-shadow:
-    inset 0 1px 0 0 rgba(0, 0, 0, 0.6),
-    0 1px 0 0 rgba(44, 52, 66, 0.5);
-}
-
-.doorway .panel.high {
-  top: 10%;
-  height: 32%;
-}
-
-.doorway .panel.low {
-  top: 50%;
-  height: 32%;
-}
-
-/* A letterbox, because every front door has one and it is one more thing
-   that could open. */
-.doorway .slot {
-  position: absolute;
-  left: 32%;
-  right: 32%;
-  top: 46%;
-  height: 4px;
-  border-radius: 2px;
-  background: #0a0d12;
-  box-shadow: inset 0 1px 0 0 rgba(0, 0, 0, 0.8), 0 1px 0 0 rgba(44, 52, 66, 0.4);
-}
-
-.doorway .handle {
-  position: absolute;
-  right: 15%;
-  top: 52%;
-  width: 11px;
-  height: 11px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 32% 30%, #6b7183, #2d3340 70%);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-}
-
-/* ---- and the light under it -------------------------------------------- */
-
-.doorway .sill {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  bottom: 0;
-  height: 5px;
-  border-radius: 1px;
-  background: linear-gradient(90deg, var(--lamp-deep), var(--lamp) 20%, var(--lamp) 80%, var(--lamp-deep));
-  box-shadow:
-    0 0 14px 1px rgba(255, 219, 150, 0.6),
-    0 10px 46px 10px rgba(240, 180, 76, 0.34);
-  animation: lamp 7s ease-in-out infinite;
-}
-
-/* A hallway bulb is never perfectly steady. */
-@keyframes lamp {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  44% {
-    opacity: 0.9;
-  }
-  52% {
-    opacity: 0.97;
-  }
-}
-
-/* Somebody is out there. The shadow crosses the light, and once in a while
-   it stops, which is the moment the game begins. */
-.doorway .feet {
-  position: absolute;
-  left: 2px;
-  right: 2px;
-  bottom: 0;
-  height: 5px;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.doorway .feet::before {
-  content: "";
-  position: absolute;
-  top: -2px;
-  bottom: -2px;
-  width: 46%;
-  background:
-    radial-gradient(circle at 29% 50%, #05070a 0 40%, transparent 46%),
-    radial-gradient(circle at 71% 50%, #05070a 0 40%, transparent 46%);
-  filter: blur(0.6px);
-  animation: passing 9s cubic-bezier(0.4, 0, 0.5, 1) infinite;
-}
-
-@keyframes passing {
-  0% {
-    transform: translateX(-120%);
-  }
-  26% {
-    transform: translateX(28%);
-  }
-  /* the pause: they have stopped at your door */
-  54% {
-    transform: translateX(32%);
-  }
-  80%,
-  100% {
-    transform: translateX(240%);
-  }
-}
-
-/* The pool of light the door throws onto the floor in front of it. */
-.doorway::after {
-  content: "";
-  position: absolute;
-  left: -58%;
-  right: -58%;
-  top: calc(100% - 3px);
-  height: 30%;
-  background: radial-gradient(
-    52% 100% at 50% 0%,
-    rgba(240, 180, 76, 0.22) 0%,
-    rgba(240, 180, 76, 0.07) 42%,
-    transparent 72%
-  );
-  pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .doorway .sill.doorway .feet::before {
-    animation: none;
-  }
-
-  .doorway .feet::before {
-    transform: translateX(28%);
-  }
-}
-
 @media (max-width: 480px) {
   .cover {
     gap: 14px;
     padding: 20px 16px;
-  }
-}
-
-/* Very short screens: the door is the first thing to give up its height. */
-@media (max-height: 620px) and (max-width: 819px) {
-  .doorway {
-    display: none;
   }
 }
 
@@ -1470,22 +1277,15 @@ label.pick {
   isolation: isolate;
 }
 
-/* The room: a back wall warmed from below, a floor, and the line where they
-   meet. Behind everything. */
-.cover::before {
-  content: "";
+/* The drawn scene, behind everything and filling the screen. It crops rather
+   than squashes, which is why the door sits right of centre in the artwork:
+   on a narrow screen the left of the picture goes before the door does. */
+.hallway {
   position: absolute;
   inset: 0;
   z-index: -2;
-  background:
-    /* the line where the wall meets the floor */
-    linear-gradient(180deg, transparent calc(78% - 1px), #272d39 78%, transparent calc(78% + 1px)),
-    /* the floor, which catches more light than the wall does */
-    linear-gradient(180deg, transparent 78%, #15181f 78%, #0e1116 100%),
-    /* the wall, warmed low where the light under the door reaches it */
-    linear-gradient(180deg, #0a0c11 0%, #0e1117 54%, #14171f 78%),
-    /* and the spill itself, wide and soft */
-    radial-gradient(85% 42% at 50% 80%, rgba(240, 180, 76, 0.1) 0%, transparent 70%);
+  width: 100%;
+  height: 100%;
   pointer-events: none;
 }
 
@@ -1514,64 +1314,13 @@ label.pick {
   pointer-events: none;
 }
 
-/* Content sits above the room layers. The grain is excluded: it is a layer,
-   not content, and relative positioning would drop it into the grid as a
-   third column. */
-.cover > *:not(.grain) {
+/* Content sits above the room layers. The scene and the grain are excluded:
+   they are layers, not content, and giving them relative positioning drops
+   them into the grid as extra columns. This has now caught both of them, so
+   the rule names them rather than assuming the next layer will remember. */
+.cover > *:not(.grain):not(.hallway) {
   position: relative;
   z-index: 1;
-}
-
-/* ---- the door gets some material -------------------------------------- */
-
-/* A bevel on the frame: the edge nearest the light is brighter. */
-.doorway .frame {
-  box-shadow:
-    inset 0 0 0 1px #2b323f,
-    inset 2px 0 0 0 rgba(90, 100, 120, 0.16),
-    inset -2px 0 0 0 rgba(0, 0, 0, 0.5),
-    0 40px 90px -30px rgba(0, 0, 0, 0.95);
-}
-
-/* Painted wood, not a flat fill: a vertical striation you cannot quite see
-   and would miss if it went. */
-.doorway .slab::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  background: repeating-linear-gradient(
-    90deg,
-    rgba(255, 255, 255, 0.012) 0px,
-    rgba(255, 255, 255, 0.012) 1px,
-    transparent 1px,
-    transparent 7px
-  );
-  pointer-events: none;
-}
-
-/* The door is lit from under itself, so the bottom of it is less dark. */
-.doorway .slab::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: 34%;
-  background: linear-gradient(180deg, transparent, rgba(240, 180, 76, 0.07));
-  pointer-events: none;
-}
-
-/* A mat, flat on the floor and lit from the door rather than drawn as a
-   slab in mid-air. */
-.doorway .mat {
-  position: absolute;
-  left: -32%;
-  right: -32%;
-  top: calc(100% + 14px);
-  height: 10px;
-  border-radius: 50%;
-  background: radial-gradient(60% 100% at 50% 50%, rgba(62, 52, 34, 0.9), rgba(16, 18, 23, 0) 78%);
-  pointer-events: none;
 }
 
 /* =======================================================================
@@ -1590,23 +1339,27 @@ label.pick {
   background-repeat: no-repeat;
 }
 
-/* The drawn door steps aside for the painted one. */
-.cover.has-art .doorway,
-.cover.has-art::before {
-  display: none;
-}
-
 /* A scrim, so the words stay readable over whatever the picture is doing.
    Dark from the left on wide screens, dark from the bottom on narrow ones,
    which is where the text sits in each case. */
-.cover.has-art::after {
+/* On a phone the words sit over the door rather than beside it, so the scrim
+   runs the other way: near solid at the top, where the reading is, and
+   opening up at the bottom, where the light under the door is. The door
+   stays a shape behind the type instead of competing with it. */
+.cover::after {
   background:
-    linear-gradient(180deg, rgba(5, 6, 9, 0.62) 0%, rgba(5, 6, 9, 0.25) 42%, rgba(5, 6, 9, 0.9) 100%),
-    radial-gradient(118% 88% at 50% 44%, transparent 38%, rgba(0, 0, 0, 0.6) 100%);
+    linear-gradient(
+      180deg,
+      rgba(5, 6, 9, 0.93) 0%,
+      rgba(5, 6, 9, 0.9) 52%,
+      rgba(5, 6, 9, 0.62) 76%,
+      rgba(5, 6, 9, 0.2) 100%
+    ),
+    radial-gradient(118% 88% at 50% 44%, transparent 46%, rgba(0, 0, 0, 0.55) 100%);
 }
 
 @media (min-width: 820px) {
-  .cover.has-art::after {
+  .cover::after {
     background:
       linear-gradient(90deg, rgba(5, 6, 9, 0.92) 0%, rgba(5, 6, 9, 0.6) 46%, rgba(5, 6, 9, 0.1) 78%),
       radial-gradient(118% 88% at 50% 44%, transparent 44%, rgba(0, 0, 0, 0.5) 100%);
@@ -1616,4 +1369,32 @@ label.pick {
 /* Grain over a photograph too: it ties the type to the picture. */
 .cover.has-art .grain {
   opacity: 0.06;
+}
+
+/* The person outside does not pace and does not leave. They shift their
+   weight, wait, and shift back. A sweep across the light says "someone
+   walked past"; this says "someone is still there", which is the one the
+   game is about. */
+@keyframes shifting {
+  0%,
+  34% {
+    transform: translateX(0);
+  }
+  48%,
+  76% {
+    transform: translateX(11px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.hallway .waiting {
+  animation: shifting 11s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hallway .waiting {
+    animation: none;
+  }
 }

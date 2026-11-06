@@ -40,6 +40,7 @@ import {
 } from "@/lib/events";
 import { setMuted } from "@/lib/sfx";
 import Replay from "./Replay";
+import Hallway from "./Hallway";
 
 type Speech = { timings: WordTiming[]; durationMs: number; anchor: number };
 
@@ -500,22 +501,11 @@ export default function Play() {
           </button>
         </div>
 
-        {/* Drawn, not drawn from a file: frame, panels, letterbox, handle, and
-            the light underneath with somebody crossing it. */}
+        {/* The scene, behind the words. Vector, so it is the same picture on a
+            phone and on a projector, and it steps aside if a real painting
+            ever lands in public/. */}
+        {!art && <Hallway />}
         <div className="grain" aria-hidden="true" />
-
-        <div className="doorway" aria-hidden="true">
-          <div className="frame" />
-          <div className="slab">
-            <div className="panel high" />
-            <div className="slot" />
-            <div className="panel low" />
-          </div>
-          <div className="handle" />
-          <div className="sill" />
-          <div className="feet" />
-          <div className="mat" />
-        </div>
       </main>
     );
   }

@@ -1,45 +1,59 @@
 # The cover art
 
-This note lives in docs/ rather than public/, because anything in public/ is
-served on the live site and a brief addressed to ourselves is not something a
-visitor should be able to read.
+The opening screen draws its own scene now, in `src/app/play/Hallway.tsx`:
+a hallway at night, the front door shut, light under it, and somebody
+standing in the light. Nothing needs to be added for the game to look
+finished.
 
-Save your image as **`public/cover.jpg`** or **`public/cover.png`**, then run
-`npm run deploy` from the project folder. Nothing else needs
-changing: the opening screen looks for that exact filename, and if it is there
-the drawn door steps aside and the picture takes the whole screen, with a scrim
-behind the text so it stays readable.
+This file is about replacing that drawing with a painting, which is still
+worth doing if there is time, because a drawing is a drawing.
 
-If the file is absent the page carries on with the drawn door, so this can
-never break anything.
+## How to swap it in
 
-Wanted: landscape, at least 2000px wide, under about 600KB after compression.
-Keep the left third quiet, because the title and the door list sit there on a
-wide screen.
+Save the image as **`public/cover.jpg`** or **`public/cover.png`** and reload.
+That is the whole procedure. The page probes for both on load, switches to
+whichever it finds, and drops the drawn scene. If neither is there, nothing
+breaks and nobody can tell.
 
-## A prompt to generate it
+The full path on this machine:
 
-Written for the game: a twelve-year-old alone in a house at night, talking
-through a locked front door to people who must not find out.
+    C:\Users\User\Desktop\work\coverstory\public\
 
-> Cinematic game key art, painted digital illustration in the style of a
-> Rockstar game cover. Interior view of a dim 1990s suburban hallway at night,
-> looking straight at a closed wooden front door. Warm amber light blazes
-> underneath the door and spills across worn floorboards. The silhouette of two
-> feet breaks that strip of light: somebody is standing outside, waiting. A
-> small boy of about twelve stands in the foreground with his back to us,
-> barefoot in pyjamas, one hand raised toward the latch, dwarfed by the door.
-> Coats on a hook, a telephone table, deep shadow everywhere else. Muted
-> desaturated palette, near black and cold blue-grey, broken only by the amber
-> of the doorlight. Heavy film grain, high contrast, strong rim lighting,
-> moody and tense rather than horror. No text, no logos, no watermark.
-> Landscape, 16:9, left third kept dark and uncluttered for titling.
+Two things to know about that folder. It is empty apart from a `.gitkeep`,
+because git will not track an empty directory and a missing folder after a
+clone is a confusing way to start. And **everything in it is served on the
+live site**, at the root: `public/notes.txt` is readable by anyone at
+`/notes.txt`. That is why this file lives in `docs/` and not next to the
+image it describes.
 
-Two things worth adjusting if the first attempt is not right:
+## Size
 
-- If it comes out too much like a horror film, add *"warm, melancholy, a
-  child's adventure rather than a haunting"*.
-- If the boy dominates, add *"the door fills most of the frame, the child is
-  small against it"*.
+Landscape, at least 1600 by 900. It is cropped from the centre on wide
+screens and pushed in to the right-hand side on phones, so keep the door
+right of centre and keep the left third quiet: that is where the words go,
+and it is the first part of the picture a phone throws away.
 
-Any image model will do: ChatGPT, Midjourney, Gemini, Leonardo, Firefly.
+## The prompt
+
+A twelve year old's view of their own front door at night, from inside the
+house. One point perspective, standing in the hallway. The door is shut.
+The only light in the house is the strip coming under it, warm and narrow,
+thrown forward across bare floorboards. Two shadows interrupt that strip:
+somebody is standing outside, close, not moving. Coats too big for a child
+hang on hooks to the left, and there is a telephone table nobody has gone
+to. Everything else is dark enough that you are reading shapes.
+
+Painted, not photographic. Heavy warm and cold contrast, deep shadow,
+visible brushwork, the colour discipline of a Rockstar key art plate: one
+light source, everything else surrendered to it. No text anywhere in the
+image. No faces. Nothing cute.
+
+## What it must not do
+
+**No text.** The title and the type are set in the page over the top, and a
+painted title fights them and cannot be translated or resized.
+
+**No faces, and nobody on the inside.** The player is the camera. Put a
+child in the frame and the player is watching somebody else be scared.
+
+**Nothing cute.** The joke is in the writing. The picture is the straight man.
