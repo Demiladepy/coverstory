@@ -20,7 +20,7 @@
  * down, which is the signal the wrong-voice penalty reads.
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import { createEngine, type Engine } from "@/game/engine";
 import { LEVELS, LEVEL_BY_ID } from "@/game/levels";
 import { GROWNUPS } from "@/game/voices";
@@ -81,8 +81,8 @@ export default function Play() {
   const [speech, setSpeech] = useState<Speech | null>(null);
   const [intoClip, setIntoClip] = useState(-1);
   const [hushed, setHushed] = useState(false);
-  /** true once public/cover.jpg has loaded, if there is one */
-  const [art, setArt] = useState(false);
+  /** the cover image that loaded, if any was put in public/ */
+  const [art, setArt] = useState<string | null>(null);
   const [loudness, setLoudness] = useState({ level: 0, baseline: 0.05 });
   const [turnsDone, setTurnsDone] = useState(0);
   const [patience, setPatience] = useState<{ ms: number; anchor: number } | null>(null);
@@ -295,13 +295,30 @@ export default function Play() {
     return () => cancelAnimationFrame(frame);
   }, [house]);
 
-  // Drop a picture at public/cover.jpg and the opening screen becomes it.
-  // Nothing else has to change: if the file is not there the load fails
-  // quietly and the drawn door stays, so this can never break the page.
+  // Drop a picture in public/ named cover.<something> and the opening screen
+  // becomes it. Several extensions are tried because image tools disagree
+  // about what they hand you, and being told the wrong filename after a
+  // deploy is a miserable way to find out. If none of them is there every
+  // load fails quietly and the drawn door stays, so this cannot break the
+  // page and neither can forgetting to add one.
   useEffect(() => {
-    const probe = new window.Image();
-    probe.onload = () => setArt(true);
-    probe.src = "/cover.jpg";
+    let cancelled = false;
+    // Both at once rather than one after the other: tried in series, the one
+    // that is not there costs a 404 before the other is attempted, and the
+    // drawn door sat on screen for seconds before the picture replaced it.
+    // Two candidates only, because every extra one is another 404 in the
+    // console on every single load. Only one can exist, so whichever loads is
+    // the cover.
+    for (const candidate of ["/cover.jpg", "/cover.png"]) {
+      const probe = new window.Image();
+      probe.onload = () => {
+        if (!cancelled) setArt(candidate);
+      };
+      probe.src = candidate;
+    }
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => () => engine.current?.stop(), []);
@@ -437,7 +454,10 @@ export default function Play() {
 
   if (phase === "ready") {
     return (
-      <main className={`night cover ${art ? "has-art" : ""}`}>
+      <main
+        className={`night cover ${art ? "has-art" : ""}`}
+        style={art ? ({ "--art": `url("${art}")` } as CSSProperties) : undefined}
+      >
         <div className="cover-words">
           {trouble}
           <p className="title">Cover Story</p>

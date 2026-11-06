@@ -1584,7 +1584,7 @@ label.pick {
    ======================================================================= */
 
 .cover.has-art {
-  background-image: url("/cover.jpg");
+  background-image: var(--art);
   background-size: cover;
   background-position: center 35%;
   background-repeat: no-repeat;

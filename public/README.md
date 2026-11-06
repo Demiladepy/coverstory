@@ -1,6 +1,7 @@
 # Drop the cover art here
 
-Save your image as **`public/cover.jpg`** and redeploy. Nothing else needs
+Save your image as **`public/cover.jpg`** or **`public/cover.png`**, then
+redeploy. Nothing else needs
 changing: the opening screen looks for that exact filename, and if it is there
 the drawn door steps aside and the picture takes the whole screen, with a scrim
 behind the text so it stays readable.
