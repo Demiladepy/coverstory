@@ -426,53 +426,43 @@ export default function Play() {
 
   if (phase === "ready") {
     return (
-      <main className="night">
+      <main className="night hall">
         <div className="card scroller">
           {trouble}
           <p className="title">Cover Story</p>
           <h1 className="big-line">Someone is at the door.</h1>
-          <p className="lede">
-            You are twelve and the house is empty. Hold <b>1</b>, <b>2</b> or <b>3</b> and talk
-            — whatever you say comes back out of the house in Dad&rsquo;s, Mom&rsquo;s or
-            Uncle&rsquo;s voice, stammers and all. Let go when you&rsquo;re done.
+          <p className="lede" style={{ marginBottom: 22 }}>
+            You are twelve and the house is empty. Hold <b>1</b>, <b>2</b> or <b>3</b> and talk;
+            it comes back out of the house in Dad&rsquo;s, Mom&rsquo;s or Uncle&rsquo;s voice,
+            stammers and all.
           </p>
 
-          <p className="title" style={{ marginTop: 26 }}>
+          <p className="title">
             Tonight &mdash; {doorsTonight} {doorsTonight === 1 ? "door" : "doors"}, in order
           </p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 6, marginBottom: 22 }}>
+          <div className="doors">
             {LEVELS.map((l, i) => {
               const from = LEVELS.findIndex((x) => x.id === levelId);
               // Doors before the one you picked are not part of tonight.
               const skipped = i < from;
               return (
-              <button
-                key={l.id}
-                className="note"
-                style={{
-                  borderStyle: "solid",
-                  borderColor: l.id === levelId ? "var(--lamp-deep)" : "#272c38",
-                  color: l.id === levelId ? "var(--lamp)" : "var(--cold-dim)",
-                  padding: "10px 12px",
-                  opacity: skipped ? 0.35 : 1,
-                  textDecoration: skipped ? "line-through" : "none",
-                }}
-                onClick={() => {
-                  setLevelId(l.id);
-                  setPlaying(l.id);
-                }}
-              >
-                <span className="txt" style={{ fontSize: 13 }}>{l.brief}</span>
-                <span className="num">{l.turnsToWin} turns</span>
-              </button>
+                <button
+                  key={l.id}
+                  className={`door-row ${l.id === levelId ? "now" : ""} ${skipped ? "skipped" : ""}`}
+                  onClick={() => {
+                    setLevelId(l.id);
+                    setPlaying(l.id);
+                  }}
+                >
+                  <span className="when">{l.brief}</span>
+                  <span className="turns">{l.turnsToWin}</span>
+                </button>
               );
             })}
           </div>
 
-          <p className="lede" style={{ marginBottom: 18 }}>
-            They want {level.want}. Get through all {doorsTonight} and nobody ever finds out
-            you were on your own &mdash; but what you tell one of them is still on the record
-            when the next one knocks.
+          <p className="lede" style={{ marginBottom: 20, fontSize: 14 }}>
+            What you tell one of them is still on the record when the next one knocks.
           </p>
           <button className="go" onClick={() => void begin()}>
             Get your story straight
@@ -484,7 +474,7 @@ export default function Play() {
 
   if (phase === "prep") {
     return (
-      <main className="night">
+      <main className="night hall">
         <div className="card scroller">
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
             <p className="title">Before they knock</p>
@@ -540,7 +530,7 @@ export default function Play() {
 
   if (phase === "opening") {
     return (
-      <main className="night">
+      <main className="night hall">
         <div className="card">
           <p className="title">Listening</p>
           <h1 className="big-line">Someone is coming up the path.</h1>
@@ -551,7 +541,7 @@ export default function Play() {
 
   if (phase === "failed") {
     return (
-      <main className="night">
+      <main className="night hall">
         <div className="card scroller">
           <p className="title">{errorCode === "budget" ? "Come back later" : "Not your fault"}</p>
           <h1 className="big-line">
@@ -574,7 +564,7 @@ export default function Play() {
 
   if (phase === "between") {
     return (
-      <main className="night">
+      <main className="night hall">
         <div className="card">
           <p className="title">{result === "won" ? "They left" : "Caught"}</p>
           <h1 className="big-line">
@@ -594,7 +584,7 @@ export default function Play() {
 
   if (phase === "over") {
     return (
-      <main className="night">
+      <main className="night hall">
         <div className="card scroller">
           <p className="title">{result === "won" ? "You got away with it" : "Caught"}</p>
           <h1 className="big-line">

@@ -987,3 +987,203 @@ label.pick {
   display: flex;
   flex-direction: column;
 }
+
+/* =======================================================================
+   The hallway.
+
+   Every screen in this game is the same place: standing inside, at night,
+   at a door. The encounter had that and nothing else did — the opening
+   screen was flat black with a column of text on it, which is a document,
+   not a place.
+
+   So the light comes back to the root, and the screens either side of the
+   encounter get the door itself: a wall rising out of the bottom of the
+   frame and a seam of warm light under it. That seam is the same one that
+   becomes the suspicion meter when the game starts, so the first screen
+   turns into the playing screen rather than being replaced by it.
+   ======================================================================= */
+
+.night {
+  /* A little light from under a door just out of frame. Present everywhere,
+     because the house is lit and the street is not. */
+  background:
+    radial-gradient(110% 60% at 50% 106%, rgba(240, 180, 76, 0.13) 0%, transparent 64%),
+    var(--night);
+}
+
+.hall {
+  position: relative;
+  overflow-y: auto;
+}
+
+/* The door. Not drawn as a rectangle with a handle — just a wall that the
+   dark gives way to, which is all you see of a door in an unlit hallway. */
+.hall::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: min(54vh, 480px);
+  background:
+    /* light spilling up from under the door, which is the only thing in this
+       hallway that is lit — without it the door is a shape and not a place */
+    radial-gradient(76% 82% at 50% 100%, rgba(240, 180, 76, 0.2) 0%, transparent 68%),
+    /* the door itself: a wall the dark gives way to, with a frame line where
+       it meets the top of the frame */
+    linear-gradient(
+      180deg,
+      rgba(26, 30, 39, 0) 0%,
+      rgba(26, 30, 39, 0.55) 26%,
+      #1a1e27 46%,
+      #11141b 100%
+    );
+  pointer-events: none;
+}
+
+/* The light under it. */
+.hall::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 3px;
+  background: linear-gradient(90deg, var(--lamp-deep), var(--lamp) 18%, var(--lamp) 82%, var(--lamp-deep));
+  box-shadow:
+    0 -2px 10px 0 rgba(255, 221, 156, 0.55),
+    0 -6px 46px 6px rgba(240, 180, 76, 0.3);
+  pointer-events: none;
+}
+
+/* Content stands in front of the door, not behind it — and centred, because
+   this is a title card, not a page of prose. */
+.hall > .card {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+}
+
+.hall .lede,
+.hall .big-line {
+  margin-inline: auto;
+}
+
+.hall .big-line {
+  font-size: clamp(28px, 6vw, 40px);
+}
+
+/* The list is still a list, however the card around it is aligned. */
+.hall .doors {
+  text-align: left;
+}
+
+/* ---- the opening screen ------------------------------------------------ */
+
+.doors {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0 0 18px;
+}
+
+.door-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 12px;
+  border: 1px solid #23283340;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--cold-dim);
+  font-family: var(--chrome);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 140ms ease,
+    color 140ms ease,
+    background-color 140ms ease;
+}
+
+.door-row:hover {
+  border-color: #2b3240;
+  color: var(--cold);
+}
+
+.door-row .when {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.door-row .turns {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: var(--cold-dim);
+  flex: none;
+}
+
+.door-row.now {
+  border-color: var(--lamp-deep);
+  color: var(--lamp);
+  background: #1a160f;
+}
+
+.door-row.now .turns {
+  color: var(--lamp-deep);
+}
+
+/* Doors before the one you picked are not part of tonight. */
+.door-row.skipped {
+  opacity: 0.3;
+  text-decoration: line-through;
+}
+
+.door-row.skipped:hover {
+  opacity: 0.55;
+}
+
+@media (max-width: 560px) {
+  .hall::before {
+    height: min(38vh, 300px);
+  }
+
+  .door-row {
+    padding: 11px 12px;
+    font-size: 13.5px;
+  }
+}
+
+/* A phone in landscape has almost no height; let the hallway scroll rather
+   than clip the button that starts the game. */
+@media (max-height: 620px) {
+  .hall::before {
+    height: 180px;
+  }
+}
+
+/* Touch targets. A finger needs about 44px and these were landing at 41. */
+@media (max-width: 560px) {
+  .door-row {
+    padding: 13px 12px;
+  }
+
+  .go,
+  .quiet {
+    padding: 13px 18px;
+  }
+
+  /* The voice keys are the control the whole game runs through, so on a phone
+     they get the room they deserve rather than the room that is left. */
+  .vkey {
+    padding: 15px 12px;
+  }
+
+  .note {
+    padding: 11px 10px;
+  }
+}
