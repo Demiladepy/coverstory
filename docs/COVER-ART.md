@@ -1,4 +1,8 @@
-# Drop the cover art here
+# The cover art
+
+This note lives in docs/ rather than public/, because anything in public/ is
+served on the live site and a brief addressed to ourselves is not something a
+visitor should be able to read.
 
 Save your image as **`public/cover.jpg`** or **`public/cover.png`**, then run
 `npm run deploy` from the project folder. Nothing else needs

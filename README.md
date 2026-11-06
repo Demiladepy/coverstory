@@ -296,6 +296,13 @@ anything that declines to keep cookies had no limit.
 
 ---
 
+## The cover image
+
+The opening screen shows a drawn door by default. Put a picture at
+`public/cover.jpg` or `public/cover.png` and it takes the screen instead, with
+a scrim behind the text; leave it out and nothing changes. The brief and a
+prompt written for this game are in [docs/COVER-ART.md](docs/COVER-ART.md).
+
 ## Watching it
 
 There is a shot list for the demo video in [docs/DEMO.md](docs/DEMO.md),
