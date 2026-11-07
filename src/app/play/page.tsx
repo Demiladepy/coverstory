@@ -303,6 +303,13 @@ export default function Play() {
   // load fails quietly and the drawn door stays, so this cannot break the
   // page and neither can forgetting to add one.
   useEffect(() => {
+    // Not in development. Every miss is a 404, and the dev server answers a
+    // 404 by compiling its not-found route, which on a cold cache took forty
+    // seven seconds a load and made the whole game look hung. Production
+    // serves a static miss in milliseconds. The drawn scene is the cover
+    // either way, so nothing is lost locally by not looking.
+    if (process.env.NODE_ENV !== "production") return;
+
     let cancelled = false;
     // Both at once rather than one after the other: tried in series, the one
     // that is not there costs a 404 before the other is attempted, and the
