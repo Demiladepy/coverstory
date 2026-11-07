@@ -669,13 +669,27 @@ export function createEngine(opts: {
             emit({ type: "mic_state", state: "listening", partial, at: at() }),
           onTurn: (turn) => void onTurn(turn),
           onError: (message) => fail("stt_lost", message),
-          onClose: () => {
+          onClose: (code, reason) => {
             // Without this the game hangs in total silence: sends and
             // ForceEndpoint both no-op on a closed socket, so the player holds
             // a key, talks, lets go, and nothing ever answers. Saying so is
             // worse than it working and far better than pretending.
             if (runOver || stopped) return;
-            fail("stt_lost", "The line went dead. The house cannot hear you any more.", false);
+            // The code and the reason are the whole diagnosis and the first
+            // version threw them away, which cost most of a day guessing at
+            // an idle timeout. 1000 is a clean close, 1008 is nearly always
+            // auth or quota, and 4000 and up are the service's own. Printed
+            // as well as shown, because the player cannot copy a sentence out
+            // of a game screen but can copy a console line.
+            // eslint-disable-next-line no-console
+            console.error("[cover-story] transcript socket closed", { code, reason });
+            fail(
+              "stt_lost",
+              `The line went dead. The house cannot hear you any more. (${code}${
+                reason ? `: ${reason}` : ""
+              })`,
+              false,
+            );
           },
         });
       } catch (err) {
