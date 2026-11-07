@@ -1,5 +1,37 @@
 # Recording the demo
 
+## The short version
+
+The whole game is one gesture. **Hold a number key. Talk. Let go. Listen.**
+
+That is it. Everything below is decoration on those four steps.
+
+| Key | Who answers |
+|-----|-------------|
+| `1` | Dad |
+| `2` | Mom |
+| `3` | Uncle |
+| `7` `8` `9` | A line you wrote earlier, spoken for you |
+
+**Hold the key down the entire time you are speaking.** Not a tap. Press,
+keep it pressed, say your sentence, then release. Nothing is listening before
+you press or after you let go.
+
+**Wait for the visitor to finish before you hold.** While they are still
+talking the keys do nothing.
+
+**After you let go, wait.** About half a second, then the grown up's voice
+says your words back. If three seconds pass with nothing, the game now tells
+you so and gives you the floor back.
+
+**Four doors, one night.** You never click between them. The next visitor
+knocks by themselves.
+
+The rest of this page is a shot list for the video. You do not need it to
+play.
+
+---
+
 Written as an order of operations: what to click, what to say, what to watch
 for, in sequence. Follow it top to bottom and you have the video.
 
