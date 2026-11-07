@@ -8,10 +8,12 @@
  * how hard it was said. That is what turns a shout into CAPS in the adult's
  * mouth, cheap, and the moment people laugh.
  *
- * The gate is the push-to-talk key. While it is shut nothing is captured, sent
- * or timed, so the server's audio clock and ours stay the same clock. Leaving
- * it open between turns would stream the empty house at the transcript service
- * and put every word's timing out by however long the player hesitated.
+ * The gate is the push-to-talk key, and it decides what the house hears, not
+ * whether the line is up. While it is shut the socket is fed digital silence:
+ * the session stays alive through a long pause, no stray words from the room
+ * get glued onto the player's next answer, and the service's audio clock and
+ * ours keep counting the same samples, which is what lets a word's timing be
+ * looked up against the loudness track to find a shout.
  */
 
 export type MicFrame = { pcm: Int16Array; rms: number; atMs: number };
@@ -118,11 +120,36 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
   };
 
   node.port.onmessage = (event: MessageEvent<Float32Array>) => {
-    if (!gateOpen) return;
-
     const float = event.data;
     const atMs = (samples / ctx.sampleRate) * 1000;
     samples += float.length;
+
+    // Gate shut: send silence rather than nothing.
+    //
+    // Sending nothing is what the first version did, and it cost a door at a
+    // time. The transcript service closes a session that has gone quiet, and
+    // a player thinking about their answer is quiet for longer than it will
+    // wait. The socket died mid-door, every later release got no turn back,
+    // and the dead air clock then took the door apart at twelve points every
+    // seven seconds while the screen said nothing useful.
+    //
+    // Silence is free: the service bills for how long the socket is open, not
+    // for what goes down it, and the socket is open either way. Zeros rather
+    // than the actual room, because anything audible between turns comes back
+    // as words and gets glued onto the front of the player's next answer.
+    //
+    // The clock still has to advance here. Word times come back on the
+    // service's timeline and are looked up against this one to find a shout,
+    // so the two have to count the same samples. That is why samples moves
+    // above this line and not below it.
+    if (!gateOpen) {
+      if (pendingLength === 0) pendingAtMs = atMs;
+      for (let i = 0; i < float.length; i++) {
+        pending[pendingLength++] = 0;
+        if (pendingLength === CHUNK) emit();
+      }
+      return;
+    }
 
     // One loudness reading per worklet frame, on the same timeline the
     // transcript's word times use.
@@ -160,6 +187,9 @@ export async function startMic(onFrame: (frame: MicFrame) => void): Promise<Mic>
     },
 
     open() {
+      // Flush the silence so the player's first word starts a clean chunk
+      // rather than arriving halfway through one.
+      emit();
       gateOpen = true;
     },
 

@@ -1398,3 +1398,14 @@ label.pick {
     animation: none;
   }
 }
+
+/* How many answers are left at this door. The dots say it visually and this
+   says it in words, because the dots were being read as decoration. */
+.togo {
+  margin-left: 12px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--lamp-deep);
+  white-space: nowrap;
+}

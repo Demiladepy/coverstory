@@ -669,10 +669,21 @@ export default function Play() {
 
         <div className="whoisit">
           {level.brief} &nbsp;·&nbsp; <b>{level.visitorName}</b>
-          <span className="pips" title={`${turnsDone} of ${level.turnsToWin} answered`}>
+          <span className="pips">
             {Array.from({ length: level.turnsToWin }, (_, i) => (
               <i key={i} className={i < turnsDone ? "on" : ""} />
             ))}
+          </span>
+          {/* The dots were the only sign of progress and they were a tooltip
+              away from meaning anything. Someone played three doors without
+              working out what ends a door, which is not a hard game, it is an
+              unreadable one. So it says it. */}
+          <span className="togo">
+            {level.turnsToWin - turnsDone === 0
+              ? "they are leaving"
+              : `${level.turnsToWin - turnsDone} more ${
+                  level.turnsToWin - turnsDone === 1 ? "answer" : "answers"
+                } and they go`}
           </span>
         </div>
         <p className="saidoutside">
