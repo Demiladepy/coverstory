@@ -134,6 +134,17 @@ export function createEngine(opts: {
   let finaliseTimer: ReturnType<typeof setTimeout> | null = null;
   /** how many more times this door may pick the phone back up */
   let redialsLeft = 0;
+  /**
+   * How many speaking flows are in the air.
+   *
+   * Answering is not one moment, it is several seconds: the grown-up's line
+   * plays, the model writes the reply, the meter moves, the visitor answers.
+   * Nothing about that needs the transcript socket, so a line dropping in the
+   * middle of it must not hand the floor back. It did, once, and the visitor
+   * then replied over the top of whatever the player had already started
+   * saying: two voices at once, out of one bug.
+   */
+  let speaking = 0;
 
   /** words from turns the model closed by itself, mid-hold */
   const carried = { text: "", words: [] as SttWord[] };
@@ -416,6 +427,13 @@ export function createEngine(opts: {
     }
     if (stopped || runOver) return;
 
+    // Only if nobody is mid sentence. If the house is still talking, that
+    // flow will hand the floor back itself when it finishes, and taking it
+    // from here is how two voices ended up speaking at once.
+    if (speaking > 0) {
+      fail("stt_lost", "The line dropped for a second. It is back.");
+      return;
+    }
     fail("stt_lost", "The line dropped for a second. Say that again.");
     ready();
   }
@@ -589,22 +607,27 @@ export function createEngine(opts: {
     audio: SpokenLine,
     score: (contradiction: Line["contradiction"]) => Scored,
   ) {
-    const next = writeNextLine();
-    await waitOutAudio(audio);
-    if (stopped) return;
+    speaking += 1;
+    try {
+      const next = writeNextLine();
+      await waitOutAudio(audio);
+      if (stopped) return;
 
-    const line = await next;
-    if (stopped) return;
+      const line = await next;
+      if (stopped) return;
 
-    if (applyScore(score(line.contradiction))) return;
+      if (applyScore(score(line.contradiction))) return;
 
-    if (turnsSurvived >= level.turnsToWin) {
-      void endLevel("won");
-      return;
+      if (turnsSurvived >= level.turnsToWin) {
+        void endLevel("won");
+        return;
+      }
+
+      await visitorSays(line);
+      if (!stopped) ready();
+    } finally {
+      speaking -= 1;
     }
-
-    await visitorSays(line);
-    if (!stopped) ready();
   }
 
   /** A prepared line, fired from a hotkey. No mic, no hesitation, no waiting. */
@@ -764,6 +787,7 @@ export function createEngine(opts: {
         at: at(),
       });
 
+      speaking += 1;
       try {
         await visitorSays({
           text: level.opener,
@@ -773,6 +797,8 @@ export function createEngine(opts: {
         if (!stopped) ready();
       } catch (err) {
         fail("unknown", err instanceof Error ? err.message : "the door would not open", false);
+      } finally {
+        speaking -= 1;
       }
     },
 
