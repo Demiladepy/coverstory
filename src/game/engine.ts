@@ -43,7 +43,7 @@ import {
   scoreTurn,
   type Scored,
   type TurnFacts,
-} from "@/game/score";
+  FINALISE_GRACE_MS,} from "@/game/score";
 import { EXCUSE_SLOTS, PREP_SECONDS } from "@/lib/events";
 import type { Claim, Clip, Excuse, GameEvent, LevelId, RunLog, Speaker, VoiceId } from "@/lib/events";
 
@@ -115,6 +115,22 @@ export function createEngine(opts: {
   let deadAirTimer: ReturnType<typeof setTimeout> | null = null;
   /** the single rap partway through the silence, before the penalty */
   let nudgeTimer: ReturnType<typeof setTimeout> | null = null;
+  /**
+   * The release watchdog.
+   *
+   * Asking the transcript to end does not guarantee a turn comes back. If the
+   * socket heard nothing at all, which is what a muted input or the wrong
+   * input device looks like from here, there is no turn to close and the
+   * model stays quiet. The engine then sits on awaiting forever: the dead air
+   * clock was cleared by the hold, and every later key press is a no-op
+   * because awaiting is true. The player holds a key, talks, lets go, and the
+   * game is simply over without saying so.
+   *
+   * Finalising was measured at 315ms. Three seconds is a wide margin for a
+   * bad network and still short enough to feel like an answer rather than a
+   * hang.
+   */
+  let finaliseTimer: ReturnType<typeof setTimeout> | null = null;
 
   /** words from turns the model closed by itself, mid-hold */
   const carried = { text: "", words: [] as SttWord[] };
@@ -324,8 +340,14 @@ export function createEngine(opts: {
    * which is what the run budget actually counts.
    */
   function closeEars() {
+    clearFinalise();
     stt?.terminate();
     stt = null;
+  }
+
+  function clearFinalise() {
+    if (finaliseTimer) clearTimeout(finaliseTimer);
+    finaliseTimer = null;
   }
 
   function clearDeadAir() {
@@ -403,6 +425,8 @@ export function createEngine(opts: {
       carried.words.push(...turn.words);
       return;
     }
+
+    clearFinalise();
 
     const transcript = `${carried.text} ${turn.transcript}`.trim();
     const words = [...carried.words, ...turn.words];
@@ -705,6 +729,24 @@ export function createEngine(opts: {
       mic?.close();
       stt?.forceEndpoint();
       emit({ type: "mic_state", state: "finalising", at: at() });
+
+      clearFinalise();
+      finaliseTimer = setTimeout(() => {
+        if (!awaiting || stopped || over) return;
+        awaiting = false;
+        carried.text = "";
+        carried.words.length = 0;
+        // Recoverable: the night carries on and the player gets the floor
+        // back. Naming the likeliest cause rather than the symptom, because
+        // "nothing came back" is true of a flat battery and of a headset the
+        // browser never switched to, and only one of those is worth checking
+        // first.
+        fail(
+          "stt_lost",
+          "Nothing came through on that one. Check the microphone your browser is using, then hold the key, speak, and let go.",
+        );
+        ready();
+      }, FINALISE_GRACE_MS);
     },
 
     fire(slot) {

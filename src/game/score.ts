@@ -24,6 +24,12 @@ export const START_SUSPICION = 10;
 export const CAUGHT_AT = 100;
 
 /** How long the house can stay silent before the visitor starts to wonder. */
+/**
+ * How long the engine waits for a transcript after the player lets go before
+ * it decides none is coming. Measured finalise is 315ms; this is the margin.
+ */
+export const FINALISE_GRACE_MS = 3000;
+
 export const DEAD_AIR_GRACE_MS = 7000;
 export const DEAD_AIR_POINTS = 12;
 
