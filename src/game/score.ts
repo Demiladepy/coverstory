@@ -30,6 +30,9 @@ export const CAUGHT_AT = 100;
  */
 export const FINALISE_GRACE_MS = 3000;
 
+/** How many times one door will pick a dropped line back up before giving in. */
+export const REDIALS_PER_DOOR = 2;
+
 export const DEAD_AIR_GRACE_MS = 7000;
 export const DEAD_AIR_POINTS = 12;
 

@@ -43,7 +43,8 @@ import {
   scoreTurn,
   type Scored,
   type TurnFacts,
-  FINALISE_GRACE_MS,} from "@/game/score";
+  FINALISE_GRACE_MS,
+  REDIALS_PER_DOOR,} from "@/game/score";
 import { EXCUSE_SLOTS, PREP_SECONDS } from "@/lib/events";
 import type { Claim, Clip, Excuse, GameEvent, LevelId, RunLog, Speaker, VoiceId } from "@/lib/events";
 
@@ -131,6 +132,8 @@ export function createEngine(opts: {
    * hang.
    */
   let finaliseTimer: ReturnType<typeof setTimeout> | null = null;
+  /** how many more times this door may pick the phone back up */
+  let redialsLeft = 0;
 
   /** words from turns the model closed by itself, mid-hold */
   const carried = { text: "", words: [] as SttWord[] };
@@ -339,6 +342,84 @@ export function createEngine(opts: {
    * little idle time during prep and saves minting a token at every door,
    * which is what the run budget actually counts.
    */
+  /**
+   * Open a transcript session wired to the handlers.
+   *
+   * Pulled out of beginLevel because the socket has to be openable twice:
+   * once at the door, and again if the line drops under us.
+   */
+  function listen() {
+    return openStt({
+      token: sttToken,
+      sampleRate: mic?.sampleRate,
+      onPartial: (partial) => emit({ type: "mic_state", state: "listening", partial, at: at() }),
+      onTurn: (turn) => void onTurn(turn),
+      onError: (message) => fail("stt_lost", message),
+      onClose: (code, reason) => void lineDropped(code, reason),
+    });
+  }
+
+  /**
+   * The line dropped. Pick it back up rather than ending the night.
+   *
+   * Close code 1005 means no close frame arrived at all, so nobody hung up
+   * on us: the connection was torn out underneath, locally. A screen
+   * recorder holding the microphone will do it, and so will any of the
+   * extensions a player happens to have running. The first version treated
+   * every close as fatal, which meant a browser the player cannot change
+   * ended their night at the second door. A judge with a password manager
+   * and an ad blocker is not a case we get to call unsupported.
+   *
+   * So: a fresh token, a fresh socket, the floor handed back, and one line
+   * saying what happened. Twice per door, because a line that will not stay
+   * up three times is not going to stay up on the fourth and the player
+   * deserves to be told rather than watched.
+   */
+  async function lineDropped(code: number, reason: string) {
+    if (runOver || stopped) return;
+    // eslint-disable-next-line no-console
+    console.error("[cover-story] transcript socket closed", { code, reason });
+    stt = null;
+
+    if (redialsLeft <= 0) {
+      fail(
+        "stt_lost",
+        `The line keeps dropping. (${code}${reason ? `: ${reason}` : ""}) ` +
+          `If you are screen recording, the recorder may be taking the microphone.`,
+        false,
+      );
+      return;
+    }
+    redialsLeft -= 1;
+
+    // Whatever turn was in flight is gone with the socket. Put the player's
+    // own state back to standing at a door with nothing said, or the gate
+    // and the awaiting flag will between them make every later key press a
+    // silent no-op.
+    clearFinalise();
+    awaiting = false;
+    holding = false;
+    carried.text = "";
+    carried.words.length = 0;
+    mic?.close();
+
+    try {
+      await freshTokens();
+      if (stopped || runOver) return;
+      // The new session counts from zero, so the loudness timeline it gets
+      // read against has to start from zero with it.
+      mic?.reset();
+      stt = await listen();
+    } catch {
+      fail("stt_lost", "The line dropped and would not come back.", false);
+      return;
+    }
+    if (stopped || runOver) return;
+
+    fail("stt_lost", "The line dropped for a second. Say that again.");
+    ready();
+  }
+
   function closeEars() {
     clearFinalise();
     stt?.terminate();
@@ -662,36 +743,10 @@ export function createEngine(opts: {
       if (!stt) mic?.reset();
 
       try {
-        if (!stt) stt = await openStt({
-          token: sttToken,
-          sampleRate: mic?.sampleRate,
-          onPartial: (partial) =>
-            emit({ type: "mic_state", state: "listening", partial, at: at() }),
-          onTurn: (turn) => void onTurn(turn),
-          onError: (message) => fail("stt_lost", message),
-          onClose: (code, reason) => {
-            // Without this the game hangs in total silence: sends and
-            // ForceEndpoint both no-op on a closed socket, so the player holds
-            // a key, talks, lets go, and nothing ever answers. Saying so is
-            // worse than it working and far better than pretending.
-            if (runOver || stopped) return;
-            // The code and the reason are the whole diagnosis and the first
-            // version threw them away, which cost most of a day guessing at
-            // an idle timeout. 1000 is a clean close, 1008 is nearly always
-            // auth or quota, and 4000 and up are the service's own. Printed
-            // as well as shown, because the player cannot copy a sentence out
-            // of a game screen but can copy a console line.
-            // eslint-disable-next-line no-console
-            console.error("[cover-story] transcript socket closed", { code, reason });
-            fail(
-              "stt_lost",
-              `The line went dead. The house cannot hear you any more. (${code}${
-                reason ? `: ${reason}` : ""
-              })`,
-              false,
-            );
-          },
-        });
+        if (!stt) {
+          redialsLeft = REDIALS_PER_DOOR;
+          stt = await listen();
+        }
       } catch (err) {
         fail("stt_lost", err instanceof Error ? err.message : "could not listen", false);
         return;

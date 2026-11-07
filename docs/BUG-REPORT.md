@@ -124,6 +124,26 @@ A table in the Streaming v3 documentation listing each close code the service
 sends, the reason string that accompanies it, and what the client should do
 about it, specifically which are retryable and which are not.
 
+## What it turned out to be for us
+
+Worth recording, because it is the answer the close code gave us the moment
+we printed it, and it was not the service at all.
+
+The code was **1005 with an empty reason**. 1005 means no close frame was
+received, so nothing hung up on us: the connection was torn down below the
+WebSocket layer, locally. The browser running the game had a screen recorder
+extension holding the microphone and two wallet extensions injecting into
+every page.
+
+That is not a bug in Streaming v3. It is still the strongest argument for
+this report: we could not reach that conclusion for a day, because a close
+with no documented meaning is indistinguishable from a service problem, and
+we spent that day building fixes for service problems that did not exist.
+
+We have since made the client reconnect on an unexpected close rather than
+treat it as fatal, which is what any real-world integration will need, since
+nobody gets to tell their users which extensions to run.
+
 ## Measurements, in case they are useful
 
 Tested directly against Streaming v3 with a temporary token, `pcm_s16le`,
