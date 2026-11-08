@@ -1409,3 +1409,80 @@ label.pick {
   color: var(--lamp-deep);
   white-space: nowrap;
 }
+
+/* ---- how to play, on the cover ---------------------------------------
+   Three steps and the keys. It lives on the opening screen rather than
+   behind a link because the one rule people miss, that the key is held
+   and not tapped, is the rule that makes the game look broken when you
+   miss it. */
+.howto {
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+  text-align: left;
+  max-width: 470px;
+  margin-inline: auto;
+}
+
+@media (min-width: 820px) {
+  .howto {
+    margin-inline: 0;
+  }
+}
+
+.howto li {
+  counter-increment: step;
+  position: relative;
+  padding-left: 30px;
+  margin-bottom: 9px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--cold);
+}
+
+.howto li::before {
+  content: counter(step);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 19px;
+  height: 19px;
+  border-radius: 50%;
+  border: 1px solid var(--lamp-deep);
+  color: var(--lamp);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.keys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 22px;
+  font-size: 12.5px;
+  color: var(--cold-dim);
+  justify-content: center;
+}
+
+@media (min-width: 820px) {
+  .keys {
+    justify-content: flex-start;
+  }
+}
+
+.keys kbd {
+  display: inline-block;
+  min-width: 19px;
+  padding: 1px 5px;
+  margin-right: 3px;
+  border: 1px solid #2b323f;
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: #11141b;
+  color: var(--lamp);
+  font: inherit;
+  font-size: 11.5px;
+  text-align: center;
+}

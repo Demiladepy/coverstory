@@ -470,11 +470,41 @@ export default function Play() {
           {trouble}
           <p className="title">Cover Story</p>
           <h1 className="big-line">Someone is at the door.</h1>
-          <p className="lede" style={{ marginBottom: 22 }}>
-            You are twelve and the house is empty. Hold <b>1</b>, <b>2</b> or <b>3</b> and talk;
-            it comes back out of the house in Dad&rsquo;s, Mom&rsquo;s or Uncle&rsquo;s voice,
-            stammers and all.
+          <p className="lede" style={{ marginBottom: 18 }}>
+            You are twelve and the house is empty. Four people will knock tonight, and not one
+            of them will deal with a child.
           </p>
+
+          {/* Somebody played three doors without working out that you have to
+              hold the key down rather than tap it. The rules were in a
+              sentence of prose above the fold and that was not enough. */}
+          <p className="title">How to play</p>
+          <ol className="howto">
+            <li>
+              <b>Hold</b> a number key down the whole time you are speaking, then let go.
+              Nothing is heard before you press or after you release.
+            </li>
+            <li>The house answers in that grown-up&rsquo;s voice, saying what you said.</li>
+            <li>
+              Keep them talking until they go. Raise your voice and the grown-up raises theirs.
+            </li>
+          </ol>
+          <div className="keys">
+            <span>
+              <kbd>1</kbd> Dad
+            </span>
+            <span>
+              <kbd>2</kbd> Mom
+            </span>
+            <span>
+              <kbd>3</kbd> Uncle
+            </span>
+            <span>
+              <kbd>7</kbd>
+              <kbd>8</kbd>
+              <kbd>9</kbd> a line you wrote before the knock
+            </span>
+          </div>
 
           <p className="title">
             Tonight: {doorsTonight} {doorsTonight === 1 ? "door" : "doors"}, in order
