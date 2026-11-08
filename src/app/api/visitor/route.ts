@@ -199,6 +199,15 @@ async function writeLine(
     ),
   ];
 
+  // A system prompt on its own is not a conversation, and the gateway will
+  // not answer one. It never happens in play, because the opener is written
+  // into the level and the model is not asked for a line until the player has
+  // said something, but a warm call or a probe hits it and gets a canned
+  // fallback that looks exactly like the model being broken.
+  if (!messages.some((m) => m.role === "user")) {
+    messages.push({ role: "user" as const, content: "[nobody has answered the door yet]" });
+  }
+
   const result = await chat({ messages, json: true, maxTokens: 160, temperature: 0.9 });
   const written = extractJson<Written>(result.content);
   const text = written?.line?.trim();
